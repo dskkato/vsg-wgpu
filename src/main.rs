@@ -40,8 +40,13 @@ struct State {
     device: wgpu::Device,
     queue: wgpu::Queue,
     config: wgpu::SurfaceConfiguration,
+    shader: wgpu::ShaderModule,
+    pipeline_layout: wgpu::PipelineLayout,
     size: winit::dpi::PhysicalSize<u32>,
     circle_bundle: wgpu::RenderBundle,
+    rebuild_circle_bundle: bool,
+    x_ctr: f32,
+    y_ctr: f32,
 }
 
 fn create_circle_bundle(
@@ -50,6 +55,8 @@ fn create_circle_bundle(
     shader: &wgpu::ShaderModule,
     pipeline_layout: &wgpu::PipelineLayout,
     sample_count: u32,
+    x_ctr: f32,
+    y_ctr: f32,
 ) -> wgpu::RenderBundle {
     let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
         label: Some("Render Pipeline"),
@@ -97,15 +104,15 @@ fn create_circle_bundle(
     let n_vertices = 1024;
     let mut vertices = Vec::new();
     let v = Vertex {
-        position: [0.0f32, 0.0f32, 0.0f32],
+        position: [-x_ctr, y_ctr, 0.0f32],
         color: [1.0, 1.0, 1.0],
     };
     vertices.push(v);
     for i in 0..n_vertices {
         let v = Vertex {
             position: [
-                0.5f32 * (6.28 as f32 * i as f32 / n_vertices as f32).cos(),
-                0.5f32 * (6.28 as f32 * i as f32 / n_vertices as f32).sin(),
+                0.5f32 * (6.28 as f32 * i as f32 / n_vertices as f32).cos() - x_ctr,
+                0.5f32 * (6.28 as f32 * i as f32 / n_vertices as f32).sin() + y_ctr,
                 0.0f32,
             ],
             color: [0.5, 0.2, 0.1],
@@ -199,7 +206,19 @@ impl State {
             bind_group_layouts: &[],
             push_constant_ranges: &[],
         });
-        let circle_bundle = create_circle_bundle(&device, &config, &shader, &pipeline_layout, 1u32);
+
+        let x_ctr = 0.0f32;
+        let y_ctr = 0.0f32;
+        let circle_bundle = create_circle_bundle(
+            &device,
+            &config,
+            &shader,
+            &pipeline_layout,
+            1u32,
+            x_ctr,
+            y_ctr,
+        );
+        let rebuild_circle_bundle = false;
 
         Self {
             surface,
@@ -207,7 +226,12 @@ impl State {
             queue,
             config,
             size,
+            shader,
+            pipeline_layout,
             circle_bundle,
+            rebuild_circle_bundle,
+            x_ctr,
+            y_ctr,
         }
     }
 
@@ -220,14 +244,48 @@ impl State {
         }
     }
 
-    #[allow(unused_variables)]
-    fn input(&mut self, event: &WindowEvent) -> bool {
-        false
+    fn update(&mut self, event: &WindowEvent) {
+        match event {
+            WindowEvent::KeyboardInput { input, .. } => {
+                if let ElementState::Pressed = input.state {
+                    match input.virtual_keycode {
+                        Some(VirtualKeyCode::Left) => {
+                            self.x_ctr += 0.05;
+                            self.rebuild_circle_bundle = true;
+                        }
+                        Some(VirtualKeyCode::Right) => {
+                            self.x_ctr -= 0.05;
+                            self.rebuild_circle_bundle = true;
+                        }
+                        Some(VirtualKeyCode::Up) => {
+                            self.y_ctr += 0.05;
+                            self.rebuild_circle_bundle = true;
+                        }
+                        Some(VirtualKeyCode::Down) => {
+                            self.y_ctr -= 0.05;
+                            self.rebuild_circle_bundle = true;
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            _ => {}
+        }
     }
 
-    fn update(&mut self) {}
-
     fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
+        if self.rebuild_circle_bundle {
+            self.circle_bundle = create_circle_bundle(
+                &self.device,
+                &self.config,
+                &self.shader,
+                &self.pipeline_layout,
+                1u32,
+                self.x_ctr,
+                self.y_ctr,
+            );
+            self.rebuild_circle_bundle = false;
+        }
         let output = self.surface.get_current_texture()?;
         let view = output
             .texture
@@ -240,25 +298,24 @@ impl State {
             });
 
         {
-            let _render_pass = encoder
-                .begin_render_pass(&wgpu::RenderPassDescriptor {
-                    label: Some("Render Pass"),
-                    color_attachments: &[wgpu::RenderPassColorAttachment {
-                        view: &view,
-                        resolve_target: None,
-                        ops: wgpu::Operations {
-                            load: wgpu::LoadOp::Clear(wgpu::Color {
-                                r: 0.1,
-                                g: 0.2,
-                                b: 0.3,
-                                a: 1.0,
-                            }),
-                            store: true,
-                        },
-                    }],
-                    depth_stencil_attachment: None,
-                })
-                .execute_bundles(iter::once(&self.circle_bundle));
+            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("Render Pass"),
+                color_attachments: &[wgpu::RenderPassColorAttachment {
+                    view: &view,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(wgpu::Color {
+                            r: 0.1,
+                            g: 0.2,
+                            b: 0.3,
+                            a: 1.0,
+                        }),
+                        store: true,
+                    },
+                }],
+                depth_stencil_attachment: None,
+            });
+            render_pass.execute_bundles(iter::once(&self.circle_bundle));
         }
 
         self.queue.submit(std::iter::once(encoder.finish()));
@@ -282,31 +339,28 @@ fn main() {
                 ref event,
                 window_id,
             } if window_id == window.id() => {
-                if !state.input(event) {
-                    match event {
-                        WindowEvent::CloseRequested
-                        | WindowEvent::KeyboardInput {
-                            input:
-                                KeyboardInput {
-                                    state: ElementState::Pressed,
-                                    virtual_keycode: Some(VirtualKeyCode::Escape),
-                                    ..
-                                },
-                            ..
-                        } => *control_flow = ControlFlow::Exit,
-                        WindowEvent::Resized(physical_size) => {
-                            state.resize(*physical_size);
-                        }
-                        WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
-                            // new_inner_size is &mut so w have to dereference it twice
-                            state.resize(**new_inner_size);
-                        }
-                        _ => {}
+                match event {
+                    WindowEvent::CloseRequested
+                    | WindowEvent::KeyboardInput {
+                        input:
+                            KeyboardInput {
+                                state: ElementState::Pressed,
+                                virtual_keycode: Some(VirtualKeyCode::Escape),
+                                ..
+                            },
+                        ..
+                    } => *control_flow = ControlFlow::Exit,
+                    WindowEvent::Resized(physical_size) => {
+                        state.resize(*physical_size);
                     }
+                    WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
+                        // new_inner_size is &mut so w have to dereference it twice
+                        state.resize(**new_inner_size);
+                    }
+                    _ => state.update(event),
                 }
             }
             Event::RedrawRequested(window_id) if window_id == window.id() => {
-                state.update();
                 match state.render() {
                     Ok(_) => {}
                     // Reconfigure the surface if lost
