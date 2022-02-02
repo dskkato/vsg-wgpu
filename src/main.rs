@@ -1,24 +1,11 @@
-use log::info;
-use wgpu::{include_wgsl, util::DeviceExt};
+use std::iter;
+
+use wgpu::util::DeviceExt;
 use winit::{
     event::*,
     event_loop::{ControlFlow, EventLoop},
     window::{Window, WindowBuilder},
 };
-
-#[repr(C)]
-#[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
-struct CircleParamUniform {
-    x: f32,
-    y: f32,
-    radius: f32,
-}
-
-impl CircleParamUniform {
-    fn new(x: f32, y: f32, radius: f32) -> Self {
-        Self { x, y, radius }
-    }
-}
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
@@ -48,175 +35,171 @@ impl Vertex {
     }
 }
 
-const VERTICES: &[Vertex] = &[
-    Vertex {
-        position: [-0.5, -0.5, 0.0],
-        color: [1.0, 0.0, 0.0],
-    },
-    Vertex {
-        position: [0.5, -0.5, 0.0],
-        color: [1.0, 0.0, 0.0],
-    },
-    Vertex {
-        position: [-0.5, 0.5, 0.0],
-        color: [1.0, 0.0, 0.0],
-    },
-    Vertex {
-        position: [0.5, 0.5, 0.0],
-        color: [1.0, 0.0, 0.0],
-    },
-];
-
-const INDICES: &[u16] = &[0, 1, 2, 1, 3, 2];
-
-struct VsgState {
+struct State {
     surface: wgpu::Surface,
     device: wgpu::Device,
     queue: wgpu::Queue,
     config: wgpu::SurfaceConfiguration,
     size: winit::dpi::PhysicalSize<u32>,
-    render_pipeline: wgpu::RenderPipeline,
-    vertex_buffer: wgpu::Buffer,
-    index_buffer: wgpu::Buffer,
-    num_vertices: u32,
-    circle_uniform: CircleParamUniform,
-    circle_buffer: wgpu::Buffer,
-    circle_bind_group: wgpu::BindGroup,
+    circle_bundle: wgpu::RenderBundle,
 }
 
-impl VsgState {
+fn create_circle_bundle(
+    device: &wgpu::Device,
+    config: &wgpu::SurfaceConfiguration,
+    shader: &wgpu::ShaderModule,
+    pipeline_layout: &wgpu::PipelineLayout,
+    sample_count: u32,
+) -> wgpu::RenderBundle {
+    let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+        label: Some("Render Pipeline"),
+        layout: Some(pipeline_layout),
+        vertex: wgpu::VertexState {
+            module: &shader,
+            entry_point: "vs_main",
+            buffers: &[Vertex::desc()],
+        },
+        fragment: Some(wgpu::FragmentState {
+            module: &shader,
+            entry_point: "fs_main",
+            targets: &[wgpu::ColorTargetState {
+                format: config.format,
+                blend: Some(wgpu::BlendState {
+                    color: wgpu::BlendComponent::REPLACE,
+                    alpha: wgpu::BlendComponent::REPLACE,
+                }),
+                write_mask: wgpu::ColorWrites::ALL,
+            }],
+        }),
+        primitive: wgpu::PrimitiveState {
+            topology: wgpu::PrimitiveTopology::TriangleList,
+            strip_index_format: None,
+            front_face: wgpu::FrontFace::Ccw,
+            cull_mode: Some(wgpu::Face::Back),
+            // Setting this to anything other than Fill requires Features::NON_FILL_POLYGON_MODE
+            polygon_mode: wgpu::PolygonMode::Fill,
+            // Requires Features::DEPTH_CLIP_CONTROL
+            unclipped_depth: false,
+            // Requires Features::CONSERVATIVE_RASTERIZATION
+            conservative: false,
+        },
+        depth_stencil: None,
+        multisample: wgpu::MultisampleState {
+            count: 1,
+            mask: !0,
+            alpha_to_coverage_enabled: false,
+        },
+        // If the pipeline will be used with a multiview render pass, this
+        // indicates how many array layers the attachments will have.
+        multiview: None,
+    });
+
+    let n_vertices = 1024;
+    let mut vertices = Vec::new();
+    let v = Vertex {
+        position: [0.0f32, 0.0f32, 0.0f32],
+        color: [1.0, 1.0, 1.0],
+    };
+    vertices.push(v);
+    for i in 0..n_vertices {
+        let v = Vertex {
+            position: [
+                0.5f32 * (6.28 as f32 * i as f32 / n_vertices as f32).cos(),
+                0.5f32 * (6.28 as f32 * i as f32 / n_vertices as f32).sin(),
+                0.0f32,
+            ],
+            color: [0.5, 0.2, 0.1],
+        };
+        vertices.push(v);
+    }
+
+    let mut indices = Vec::new();
+    for i in 0..n_vertices - 1 {
+        indices.push(0u16);
+        indices.push(i as u16);
+        indices.push(i as u16 + 1);
+    }
+    indices.push(0u16);
+    indices.push((n_vertices - 1) as u16);
+    indices.push(1u16);
+
+    let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        label: Some("Vertex Buffer"),
+        contents: bytemuck::cast_slice(&vertices),
+        usage: wgpu::BufferUsages::VERTEX,
+    });
+    let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        label: Some("Index Buffer"),
+        contents: bytemuck::cast_slice(&indices),
+        usage: wgpu::BufferUsages::INDEX,
+    });
+    let num_indices = indices.len() as u32;
+
+    let mut encoder = device.create_render_bundle_encoder(&wgpu::RenderBundleEncoderDescriptor {
+        label: Some("Render Bundle Encoder"),
+        color_formats: &[config.format],
+        depth_stencil: None,
+        sample_count,
+        multiview: None,
+    });
+    encoder.set_pipeline(&render_pipeline);
+    encoder.set_vertex_buffer(0, vertex_buffer.slice(..));
+    encoder.set_index_buffer(index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+    encoder.draw_indexed(0..num_indices, 0, 0..1);
+    encoder.finish(&wgpu::RenderBundleDescriptor {
+        label: Some("Circle"),
+    })
+}
+
+impl State {
     async fn new(window: &Window) -> Self {
         let size = window.inner_size();
 
         // The instance is a handle to our GPU
-        let instance = wgpu::Instance::new(wgpu::Backends::VULKAN);
+        // BackendBit::PRIMARY => Vulkan + Metal + DX12 + Browser WebGPU
+        let instance = wgpu::Instance::new(wgpu::Backends::all());
         let surface = unsafe { instance.create_surface(window) };
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions {
-                power_preference: wgpu::PowerPreference::HighPerformance,
+                power_preference: wgpu::PowerPreference::default(),
                 compatible_surface: Some(&surface),
                 force_fallback_adapter: false,
             })
             .await
-            .expect("Failed to get adapter");
+            .unwrap();
 
         let (device, queue) = adapter
             .request_device(
                 &wgpu::DeviceDescriptor {
+                    label: None,
                     features: wgpu::Features::empty(),
                     limits: wgpu::Limits::default(),
-                    label: None,
                 },
-                None,
+                None, // Trace path
             )
             .await
-            .expect("Failed to create device");
+            .unwrap();
 
-        let format = surface
-            .get_preferred_format(&adapter)
-            .expect("Failed to get format");
-        info!("{:?}", format);
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-            format,
+            format: surface.get_preferred_format(&adapter).unwrap(),
             width: size.width,
             height: size.height,
             present_mode: wgpu::PresentMode::Fifo,
         };
         surface.configure(&device, &config);
 
-        let shader = device.create_shader_module(&include_wgsl!("shader.wgsl"));
-
-        // Vertex buffer
-        let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Vertex Buffer"),
-            contents: bytemuck::cast_slice(VERTICES),
-            usage: wgpu::BufferUsages::VERTEX,
+        let shader = device.create_shader_module(&wgpu::ShaderModuleDescriptor {
+            label: Some("Shader"),
+            source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
         });
 
-        let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Index Buffer"),
-            contents: bytemuck::cast_slice(INDICES),
-            usage: wgpu::BufferUsages::INDEX,
+        let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+            label: Some("Render Pipeline Layout"),
+            bind_group_layouts: &[],
+            push_constant_ranges: &[],
         });
-
-        let num_vertices = INDICES.len() as u32;
-
-        // For circle
-        let circle_uniform = CircleParamUniform::new(0.2, 0.1, 0.3);
-        let circle_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Circle Buffer"),
-            contents: bytemuck::cast_slice(&[circle_uniform]),
-            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-        });
-
-        let circle_bind_group_layout =
-            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                label: Some("Circle Bind Group Layout"),
-                entries: &[wgpu::BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: wgpu::ShaderStages::VERTEX,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                }],
-            });
-        let circle_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            layout: &circle_bind_group_layout,
-            entries: &[wgpu::BindGroupEntry {
-                binding: 0,
-                resource: circle_buffer.as_entire_binding(),
-            }],
-            label: Some("circle_bind_group"),
-        });
-
-        let render_pipeline_layout =
-            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some("Render Pipeline Layout"),
-                bind_group_layouts: &[&circle_bind_group_layout],
-                push_constant_ranges: &[],
-            });
-
-        let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("Render Pipeline"),
-            layout: Some(&render_pipeline_layout),
-            vertex: wgpu::VertexState {
-                module: &shader,
-                entry_point: "vs_main",
-                buffers: &[Vertex::desc()],
-            },
-            fragment: Some(wgpu::FragmentState {
-                module: &shader,
-                entry_point: "fs_main",
-                targets: &[wgpu::ColorTargetState {
-                    format: config.format,
-                    blend: Some(wgpu::BlendState::REPLACE),
-                    write_mask: wgpu::ColorWrites::ALL,
-                }],
-            }),
-            primitive: wgpu::PrimitiveState {
-                topology: wgpu::PrimitiveTopology::TriangleList,
-                strip_index_format: None,
-                front_face: wgpu::FrontFace::Ccw,
-                cull_mode: Some(wgpu::Face::Back),
-                // Setting this to anything other than Fill requires Features::NON_FILL_POLYGON_MODE
-                polygon_mode: wgpu::PolygonMode::Fill,
-                // Requires Features::DEPTH_CLIP_CONTROL
-                unclipped_depth: false,
-                // Requires Features::CONSERVATIVE_RASTERIZATION
-                conservative: false,
-            },
-            depth_stencil: None,
-            multisample: wgpu::MultisampleState {
-                count: 1,
-                mask: !0,
-                alpha_to_coverage_enabled: false,
-            },
-            multiview: None,
-        });
+        let circle_bundle = create_circle_bundle(&device, &config, &shader, &pipeline_layout, 1u32);
 
         Self {
             surface,
@@ -224,17 +207,11 @@ impl VsgState {
             queue,
             config,
             size,
-            render_pipeline,
-            vertex_buffer,
-            index_buffer,
-            num_vertices,
-            circle_uniform,
-            circle_buffer,
-            circle_bind_group,
+            circle_bundle,
         }
     }
 
-    fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {
+    pub fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {
         if new_size.width > 0 && new_size.height > 0 {
             self.size = new_size;
             self.config.width = new_size.width;
@@ -243,6 +220,7 @@ impl VsgState {
         }
     }
 
+    #[allow(unused_variables)]
     fn input(&mut self, event: &WindowEvent) -> bool {
         false
     }
@@ -254,35 +232,33 @@ impl VsgState {
         let view = output
             .texture
             .create_view(&wgpu::TextureViewDescriptor::default());
+
         let mut encoder = self
             .device
             .create_command_encoder(&wgpu::CommandEncoderDescriptor {
                 label: Some("Render Encoder"),
             });
-        {
-            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("Render Pass"),
-                color_attachments: &[wgpu::RenderPassColorAttachment {
-                    view: &view,
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color {
-                            r: 0.1,
-                            g: 0.2,
-                            b: 0.3,
-                            a: 1.0,
-                        }),
-                        store: true,
-                    },
-                }],
-                depth_stencil_attachment: None,
-            });
 
-            render_pass.set_pipeline(&self.render_pipeline);
-            render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
-            render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
-            render_pass.set_bind_group(0, &self.circle_bind_group, &[]);
-            render_pass.draw_indexed(0..self.num_vertices, 0, 0..1)
+        {
+            let _render_pass = encoder
+                .begin_render_pass(&wgpu::RenderPassDescriptor {
+                    label: Some("Render Pass"),
+                    color_attachments: &[wgpu::RenderPassColorAttachment {
+                        view: &view,
+                        resolve_target: None,
+                        ops: wgpu::Operations {
+                            load: wgpu::LoadOp::Clear(wgpu::Color {
+                                r: 0.1,
+                                g: 0.2,
+                                b: 0.3,
+                                a: 1.0,
+                            }),
+                            store: true,
+                        },
+                    }],
+                    depth_stencil_attachment: None,
+                })
+                .execute_bundles(iter::once(&self.circle_bundle));
         }
 
         self.queue.submit(std::iter::once(encoder.finish()));
@@ -295,55 +271,58 @@ impl VsgState {
 fn main() {
     env_logger::init();
     let event_loop = EventLoop::new();
-    let window = WindowBuilder::new()
-        .with_title("VSG")
-        .with_always_on_top(true)
-        .with_visible(false)
-        .with_position(winit::dpi::LogicalPosition::new(0.0, 0.0))
-        .build(&event_loop)
-        .unwrap();
+    let window = WindowBuilder::new().build(&event_loop).unwrap();
 
-    let mut state = pollster::block_on(VsgState::new(&window));
-    window.set_visible(true);
+    // State::new uses async code, so we're going to wait for it to finish
+    let mut state = pollster::block_on(State::new(&window));
 
-    event_loop.run(move |event, _, control_flow| match event {
-        Event::WindowEvent {
-            ref event,
-            window_id,
-        } if window_id == window.id() => {
-            if !state.input(event) {
-                match event {
-                    WindowEvent::CloseRequested
-                    | WindowEvent::KeyboardInput {
-                        input:
-                            KeyboardInput {
-                                state: ElementState::Pressed,
-                                virtual_keycode: Some(VirtualKeyCode::Escape),
-                                ..
-                            },
-                        ..
-                    } => *control_flow = ControlFlow::Exit,
-                    WindowEvent::Resized(physical_size) => {
-                        state.resize(*physical_size);
+    event_loop.run(move |event, _, control_flow| {
+        match event {
+            Event::WindowEvent {
+                ref event,
+                window_id,
+            } if window_id == window.id() => {
+                if !state.input(event) {
+                    match event {
+                        WindowEvent::CloseRequested
+                        | WindowEvent::KeyboardInput {
+                            input:
+                                KeyboardInput {
+                                    state: ElementState::Pressed,
+                                    virtual_keycode: Some(VirtualKeyCode::Escape),
+                                    ..
+                                },
+                            ..
+                        } => *control_flow = ControlFlow::Exit,
+                        WindowEvent::Resized(physical_size) => {
+                            state.resize(*physical_size);
+                        }
+                        WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
+                            // new_inner_size is &mut so w have to dereference it twice
+                            state.resize(**new_inner_size);
+                        }
+                        _ => {}
                     }
-                    WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
-                        state.resize(**new_inner_size);
-                    }
-                    _ => {}
                 }
             }
-        }
-        Event::RedrawRequested(window_id) if window_id == window.id() => {
-            state.update();
-            match state.render() {
-                Ok(_) => {}
-                Err(wgpu::SurfaceError::Lost) => state.resize(state.size),
-                // The system is out of memory, we should probably quit
-                Err(wgpu::SurfaceError::OutOfMemory) => *control_flow = ControlFlow::Exit,
-                // All other errors (Outdated, Timeout) should be resolved by the next frame
-                Err(e) => eprintln!("{:?}", e),
+            Event::RedrawRequested(window_id) if window_id == window.id() => {
+                state.update();
+                match state.render() {
+                    Ok(_) => {}
+                    // Reconfigure the surface if lost
+                    Err(wgpu::SurfaceError::Lost) => state.resize(state.size),
+                    // The system is out of memory, we should probably quit
+                    Err(wgpu::SurfaceError::OutOfMemory) => *control_flow = ControlFlow::Exit,
+                    // All other errors (Outdated, Timeout) should be resolved by the next frame
+                    Err(e) => eprintln!("{:?}", e),
+                }
             }
+            Event::MainEventsCleared => {
+                // RedrawRequested will only trigger once, unless we manually
+                // request it.
+                window.request_redraw();
+            }
+            _ => {}
         }
-        _ => {}
     });
 }
