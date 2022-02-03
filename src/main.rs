@@ -7,39 +7,38 @@ use winit::{
     window::{Window, WindowBuilder},
 };
 
-#[repr(C)]
-#[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
-struct Vertex {
-    position: [f32; 3],
-    color: [f32; 3],
-}
-
-impl Vertex {
-    fn desc<'a>() -> wgpu::VertexBufferLayout<'a> {
-        wgpu::VertexBufferLayout {
-            array_stride: std::mem::size_of::<Vertex>() as wgpu::BufferAddress,
-            step_mode: wgpu::VertexStepMode::Vertex,
-            attributes: &[
-                wgpu::VertexAttribute {
-                    offset: 0,
-                    shader_location: 0,
-                    format: wgpu::VertexFormat::Float32x3,
-                },
-                wgpu::VertexAttribute {
-                    offset: std::mem::size_of::<[f32; 3]>() as wgpu::BufferAddress,
-                    shader_location: 1,
-                    format: wgpu::VertexFormat::Float32x3,
-                },
-            ],
-        }
-    }
-}
+mod shapes;
+mod texture;
+use shapes::*;
+mod vertex;
+use vertex::VertexTexture;
 
 enum Shape {
     Square,
     Circle,
     Cross,
 }
+
+const VERTICES: &[VertexTexture] = &[
+    VertexTexture {
+        position: [0.5, 0.5, 0.0],
+        tex_coords: [1.0, 0.0],
+    }, // upper right
+    VertexTexture {
+        position: [-0.5, 0.5, 0.0],
+        tex_coords: [0.0, 0.0],
+    }, // upper left
+    VertexTexture {
+        position: [0.5, -0.5, 0.0],
+        tex_coords: [1.0, 1.0],
+    }, // lower right
+    VertexTexture {
+        position: [-0.5, -0.5, 0.0],
+        tex_coords: [0.0, 1.0],
+    }, // lower left
+];
+
+const INDICES: &[u16] = &[0, 1, 2, 1, 3, 2];
 
 struct State {
     surface: wgpu::Surface,
@@ -48,343 +47,20 @@ struct State {
     config: wgpu::SurfaceConfiguration,
     shader: wgpu::ShaderModule,
     pipeline_layout: wgpu::PipelineLayout,
+    shader_with_texture: wgpu::ShaderModule,
+    pipeline_with_texture_layout: wgpu::PipelineLayout,
+    pipeline_with_texture: wgpu::RenderPipeline,
+    vertex_buffer: wgpu::Buffer,
+    index_buffer: wgpu::Buffer,
+    num_indices: u32,
     size: winit::dpi::PhysicalSize<u32>,
     bundle: wgpu::RenderBundle,
-    rebuild_circle_bundle: bool,
+    rebuild_bundle: bool,
+    diffuse_texture: texture::Texture,
+    diffuse_bind_group: wgpu::BindGroup,
     x_ctr: f32,
     y_ctr: f32,
     shape: Shape,
-}
-
-fn create_cross_bundle(
-    device: &wgpu::Device,
-    config: &wgpu::SurfaceConfiguration,
-    shader: &wgpu::ShaderModule,
-    pipeline_layout: &wgpu::PipelineLayout,
-    sample_count: u32,
-    x_ctr: f32,
-    y_ctr: f32,
-) -> wgpu::RenderBundle {
-    let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-        label: Some("Render Pipeline"),
-        layout: Some(pipeline_layout),
-        vertex: wgpu::VertexState {
-            module: &shader,
-            entry_point: "vs_main",
-            buffers: &[Vertex::desc()],
-        },
-        fragment: Some(wgpu::FragmentState {
-            module: &shader,
-            entry_point: "fs_main",
-            targets: &[wgpu::ColorTargetState {
-                format: config.format,
-                blend: Some(wgpu::BlendState {
-                    color: wgpu::BlendComponent::REPLACE,
-                    alpha: wgpu::BlendComponent::REPLACE,
-                }),
-                write_mask: wgpu::ColorWrites::ALL,
-            }],
-        }),
-        primitive: wgpu::PrimitiveState {
-            topology: wgpu::PrimitiveTopology::TriangleList,
-            strip_index_format: None,
-            front_face: wgpu::FrontFace::Ccw,
-            cull_mode: Some(wgpu::Face::Back),
-            // Setting this to anything other than Fill requires Features::NON_FILL_POLYGON_MODE
-            polygon_mode: wgpu::PolygonMode::Fill,
-            // Requires Features::DEPTH_CLIP_CONTROL
-            unclipped_depth: false,
-            // Requires Features::CONSERVATIVE_RASTERIZATION
-            conservative: false,
-        },
-        depth_stencil: None,
-        multisample: wgpu::MultisampleState {
-            count: 1,
-            mask: !0,
-            alpha_to_coverage_enabled: false,
-        },
-        // If the pipeline will be used with a multiview render pass, this
-        // indicates how many array layers the attachments will have.
-        multiview: None,
-    });
-
-    let x_ctr = x_ctr.abs();
-    let y_ctr = y_ctr.abs();
-    let vertices = [
-        Vertex {
-            position: [-x_ctr / 2.0, -y_ctr, 0.0f32],
-            color: [1.0, 1.0, 1.0],
-        },
-        Vertex {
-            position: [-x_ctr / 2.0, y_ctr, 0.0f32],
-            color: [1.0, 1.0, 1.0],
-        },
-        Vertex {
-            position: [x_ctr / 2.0, -y_ctr, 0.0f32],
-            color: [1.0, 1.0, 1.0],
-        },
-        Vertex {
-            position: [x_ctr / 2.0, y_ctr, 0.0f32],
-            color: [1.0, 1.0, 1.0],
-        },
-        Vertex {
-            position: [-x_ctr, -y_ctr / 2.0, 0.0f32],
-            color: [1.0, 1.0, 1.0],
-        },
-        Vertex {
-            position: [-x_ctr, y_ctr / 2.0, 0.0f32],
-            color: [1.0, 1.0, 1.0],
-        },
-        Vertex {
-            position: [x_ctr, -y_ctr / 2.0, 0.0f32],
-            color: [1.0, 1.0, 1.0],
-        },
-        Vertex {
-            position: [x_ctr, y_ctr / 2.0, 0.0f32],
-            color: [1.0, 1.0, 1.0],
-        },
-    ];
-
-    let indices = [0u16, 2, 1, 2, 3, 1, 4, 6, 5, 6, 7, 5];
-
-    let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-        label: Some("Vertex Buffer"),
-        contents: bytemuck::cast_slice(&vertices),
-        usage: wgpu::BufferUsages::VERTEX,
-    });
-    let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-        label: Some("Index Buffer"),
-        contents: bytemuck::cast_slice(&indices),
-        usage: wgpu::BufferUsages::INDEX,
-    });
-    let num_indices = indices.len() as u32;
-
-    let mut encoder = device.create_render_bundle_encoder(&wgpu::RenderBundleEncoderDescriptor {
-        label: Some("Render Bundle Encoder"),
-        color_formats: &[config.format],
-        depth_stencil: None,
-        sample_count,
-        multiview: None,
-    });
-    encoder.set_pipeline(&render_pipeline);
-    encoder.set_vertex_buffer(0, vertex_buffer.slice(..));
-    encoder.set_index_buffer(index_buffer.slice(..), wgpu::IndexFormat::Uint16);
-    encoder.draw_indexed(0..num_indices, 0, 0..1);
-    encoder.finish(&wgpu::RenderBundleDescriptor {
-        label: Some("Square"),
-    })
-}
-
-fn create_square_bundle(
-    device: &wgpu::Device,
-    config: &wgpu::SurfaceConfiguration,
-    shader: &wgpu::ShaderModule,
-    pipeline_layout: &wgpu::PipelineLayout,
-    sample_count: u32,
-    x_ctr: f32,
-    y_ctr: f32,
-) -> wgpu::RenderBundle {
-    let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-        label: Some("Render Pipeline"),
-        layout: Some(pipeline_layout),
-        vertex: wgpu::VertexState {
-            module: &shader,
-            entry_point: "vs_main",
-            buffers: &[Vertex::desc()],
-        },
-        fragment: Some(wgpu::FragmentState {
-            module: &shader,
-            entry_point: "fs_main",
-            targets: &[wgpu::ColorTargetState {
-                format: config.format,
-                blend: Some(wgpu::BlendState {
-                    color: wgpu::BlendComponent::REPLACE,
-                    alpha: wgpu::BlendComponent::REPLACE,
-                }),
-                write_mask: wgpu::ColorWrites::ALL,
-            }],
-        }),
-        primitive: wgpu::PrimitiveState {
-            topology: wgpu::PrimitiveTopology::TriangleList,
-            strip_index_format: None,
-            front_face: wgpu::FrontFace::Ccw,
-            cull_mode: Some(wgpu::Face::Back),
-            // Setting this to anything other than Fill requires Features::NON_FILL_POLYGON_MODE
-            polygon_mode: wgpu::PolygonMode::Fill,
-            // Requires Features::DEPTH_CLIP_CONTROL
-            unclipped_depth: false,
-            // Requires Features::CONSERVATIVE_RASTERIZATION
-            conservative: false,
-        },
-        depth_stencil: None,
-        multisample: wgpu::MultisampleState {
-            count: 1,
-            mask: !0,
-            alpha_to_coverage_enabled: false,
-        },
-        // If the pipeline will be used with a multiview render pass, this
-        // indicates how many array layers the attachments will have.
-        multiview: None,
-    });
-
-    let x_ctr = x_ctr.abs();
-    let y_ctr = y_ctr.abs();
-    let vertices = [
-        Vertex {
-            position: [-x_ctr, -y_ctr, 0.0f32],
-            color: [1.0, 1.0, 1.0],
-        },
-        Vertex {
-            position: [-x_ctr, y_ctr, 0.0f32],
-            color: [1.0, 1.0, 1.0],
-        },
-        Vertex {
-            position: [x_ctr, -y_ctr, 0.0f32],
-            color: [1.0, 1.0, 1.0],
-        },
-        Vertex {
-            position: [x_ctr, y_ctr, 0.0f32],
-            color: [1.0, 1.0, 1.0],
-        },
-    ];
-
-    let indices = [0u16, 2, 1, 2, 3, 1];
-
-    let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-        label: Some("Vertex Buffer"),
-        contents: bytemuck::cast_slice(&vertices),
-        usage: wgpu::BufferUsages::VERTEX,
-    });
-    let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-        label: Some("Index Buffer"),
-        contents: bytemuck::cast_slice(&indices),
-        usage: wgpu::BufferUsages::INDEX,
-    });
-    let num_indices = indices.len() as u32;
-
-    let mut encoder = device.create_render_bundle_encoder(&wgpu::RenderBundleEncoderDescriptor {
-        label: Some("Render Bundle Encoder"),
-        color_formats: &[config.format],
-        depth_stencil: None,
-        sample_count,
-        multiview: None,
-    });
-    encoder.set_pipeline(&render_pipeline);
-    encoder.set_vertex_buffer(0, vertex_buffer.slice(..));
-    encoder.set_index_buffer(index_buffer.slice(..), wgpu::IndexFormat::Uint16);
-    encoder.draw_indexed(0..num_indices, 0, 0..1);
-    encoder.finish(&wgpu::RenderBundleDescriptor {
-        label: Some("Square"),
-    })
-}
-
-fn create_circle_bundle(
-    device: &wgpu::Device,
-    config: &wgpu::SurfaceConfiguration,
-    shader: &wgpu::ShaderModule,
-    pipeline_layout: &wgpu::PipelineLayout,
-    sample_count: u32,
-    x_ctr: f32,
-    y_ctr: f32,
-) -> wgpu::RenderBundle {
-    let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-        label: Some("Render Pipeline"),
-        layout: Some(pipeline_layout),
-        vertex: wgpu::VertexState {
-            module: &shader,
-            entry_point: "vs_main",
-            buffers: &[Vertex::desc()],
-        },
-        fragment: Some(wgpu::FragmentState {
-            module: &shader,
-            entry_point: "fs_main",
-            targets: &[wgpu::ColorTargetState {
-                format: config.format,
-                blend: Some(wgpu::BlendState {
-                    color: wgpu::BlendComponent::REPLACE,
-                    alpha: wgpu::BlendComponent::REPLACE,
-                }),
-                write_mask: wgpu::ColorWrites::ALL,
-            }],
-        }),
-        primitive: wgpu::PrimitiveState {
-            topology: wgpu::PrimitiveTopology::TriangleList,
-            strip_index_format: None,
-            front_face: wgpu::FrontFace::Ccw,
-            cull_mode: Some(wgpu::Face::Back),
-            // Setting this to anything other than Fill requires Features::NON_FILL_POLYGON_MODE
-            polygon_mode: wgpu::PolygonMode::Fill,
-            // Requires Features::DEPTH_CLIP_CONTROL
-            unclipped_depth: false,
-            // Requires Features::CONSERVATIVE_RASTERIZATION
-            conservative: false,
-        },
-        depth_stencil: None,
-        multisample: wgpu::MultisampleState {
-            count: 1,
-            mask: !0,
-            alpha_to_coverage_enabled: false,
-        },
-        // If the pipeline will be used with a multiview render pass, this
-        // indicates how many array layers the attachments will have.
-        multiview: None,
-    });
-
-    let n_vertices = 1024;
-    let mut vertices = Vec::new();
-    let v = Vertex {
-        position: [-x_ctr, y_ctr, 0.0f32],
-        color: [1.0, 1.0, 1.0],
-    };
-    vertices.push(v);
-    for i in 0..n_vertices {
-        let v = Vertex {
-            position: [
-                0.5f32 * (6.28 as f32 * i as f32 / n_vertices as f32).cos() - x_ctr,
-                0.5f32 * (6.28 as f32 * i as f32 / n_vertices as f32).sin() + y_ctr,
-                0.0f32,
-            ],
-            color: [0.5, 0.2, 0.1],
-        };
-        vertices.push(v);
-    }
-
-    let mut indices = Vec::new();
-    for i in 0..n_vertices - 1 {
-        indices.push(0u16);
-        indices.push(i as u16);
-        indices.push(i as u16 + 1);
-    }
-    indices.push(0u16);
-    indices.push((n_vertices - 1) as u16);
-    indices.push(1u16);
-
-    let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-        label: Some("Vertex Buffer"),
-        contents: bytemuck::cast_slice(&vertices),
-        usage: wgpu::BufferUsages::VERTEX,
-    });
-    let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-        label: Some("Index Buffer"),
-        contents: bytemuck::cast_slice(&indices),
-        usage: wgpu::BufferUsages::INDEX,
-    });
-    let num_indices = indices.len() as u32;
-
-    let mut encoder = device.create_render_bundle_encoder(&wgpu::RenderBundleEncoderDescriptor {
-        label: Some("Render Bundle Encoder"),
-        color_formats: &[config.format],
-        depth_stencil: None,
-        sample_count,
-        multiview: None,
-    });
-    encoder.set_pipeline(&render_pipeline);
-    encoder.set_vertex_buffer(0, vertex_buffer.slice(..));
-    encoder.set_index_buffer(index_buffer.slice(..), wgpu::IndexFormat::Uint16);
-    encoder.draw_indexed(0..num_indices, 0, 0..1);
-    encoder.finish(&wgpu::RenderBundleDescriptor {
-        label: Some("Circle"),
-    })
 }
 
 impl State {
@@ -425,6 +101,115 @@ impl State {
         };
         surface.configure(&device, &config);
 
+        let diffuse_bytes = include_bytes!("sample.tif");
+        let diffuse_texture =
+            texture::Texture::from_bytes(&device, &queue, diffuse_bytes, "sample.tif").unwrap();
+
+        let texture_bind_group_layout =
+            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                entries: &[
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+                        ty: wgpu::BindingType::Texture {
+                            multisampled: false,
+                            view_dimension: wgpu::TextureViewDimension::D2,
+                            sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                        },
+                        count: None,
+                    },
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 1,
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+                        ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                        count: None,
+                    },
+                ],
+                label: Some("texture_bind_group_layout"),
+            });
+
+        let diffuse_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &texture_bind_group_layout,
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: wgpu::BindingResource::TextureView(&diffuse_texture.view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: wgpu::BindingResource::Sampler(&diffuse_texture.sampler),
+                },
+            ],
+            label: Some("diffuse_bind_group"),
+        });
+
+        let shader_with_texture = device.create_shader_module(&wgpu::ShaderModuleDescriptor {
+            label: Some("TextureShader"),
+            source: wgpu::ShaderSource::Wgsl(include_str!("shader_with_texture.wgsl").into()),
+        });
+
+        let pipeline_with_texture_layout =
+            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: Some("Texture Render Pipeline Layout"),
+                bind_group_layouts: &[&texture_bind_group_layout],
+                push_constant_ranges: &[],
+            });
+
+        let pipeline_with_texture =
+            device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                label: Some("Texture Render Pipeline"),
+                layout: Some(&pipeline_with_texture_layout),
+                vertex: wgpu::VertexState {
+                    module: &shader_with_texture,
+                    entry_point: "vs_main",
+                    buffers: &[VertexTexture::desc()],
+                },
+                fragment: Some(wgpu::FragmentState {
+                    module: &shader_with_texture,
+                    entry_point: "fs_main",
+                    targets: &[wgpu::ColorTargetState {
+                        format: config.format,
+                        blend: Some(wgpu::BlendState {
+                            color: wgpu::BlendComponent::REPLACE,
+                            alpha: wgpu::BlendComponent::REPLACE,
+                        }),
+                        write_mask: wgpu::ColorWrites::ALL,
+                    }],
+                }),
+                primitive: wgpu::PrimitiveState {
+                    topology: wgpu::PrimitiveTopology::TriangleList,
+                    strip_index_format: None,
+                    front_face: wgpu::FrontFace::Ccw,
+                    cull_mode: Some(wgpu::Face::Back),
+                    // Setting this to anything other than Fill requires Features::NON_FILL_POLYGON_MODE
+                    polygon_mode: wgpu::PolygonMode::Fill,
+                    // Requires Features::DEPTH_CLIP_CONTROL
+                    unclipped_depth: false,
+                    // Requires Features::CONSERVATIVE_RASTERIZATION
+                    conservative: false,
+                },
+                depth_stencil: None,
+                multisample: wgpu::MultisampleState {
+                    count: 1,
+                    mask: !0,
+                    alpha_to_coverage_enabled: false,
+                },
+                // If the pipeline will be used with a multiview render pass, this
+                // indicates how many array layers the attachments will have.
+                multiview: None,
+            });
+        let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Texture Vertex Buffer"),
+            contents: bytemuck::cast_slice(VERTICES),
+            usage: wgpu::BufferUsages::VERTEX,
+        });
+        let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Texture Index Buffer"),
+            contents: bytemuck::cast_slice(INDICES),
+            usage: wgpu::BufferUsages::INDEX,
+        });
+        let num_indices = INDICES.len() as u32;
+
         let shader = device.create_shader_module(&wgpu::ShaderModuleDescriptor {
             label: Some("Shader"),
             source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
@@ -438,7 +223,7 @@ impl State {
 
         let x_ctr = 0.0f32;
         let y_ctr = 0.0f32;
-        let circle_bundle = create_circle_bundle(
+        let bundle = create_circle_bundle(
             &device,
             &config,
             &shader,
@@ -447,7 +232,7 @@ impl State {
             x_ctr,
             y_ctr,
         );
-        let rebuild_circle_bundle = false;
+        let rebuild_bundle = false;
         let shape = Shape::Circle;
 
         Self {
@@ -458,8 +243,16 @@ impl State {
             size,
             shader,
             pipeline_layout,
-            bundle: circle_bundle,
-            rebuild_circle_bundle,
+            shader_with_texture,
+            pipeline_with_texture_layout,
+            pipeline_with_texture,
+            vertex_buffer,
+            index_buffer,
+            num_indices,
+            bundle,
+            rebuild_bundle,
+            diffuse_texture,
+            diffuse_bind_group,
             x_ctr,
             y_ctr,
             shape,
@@ -482,32 +275,32 @@ impl State {
                     match input.virtual_keycode {
                         Some(VirtualKeyCode::Left) => {
                             self.x_ctr += 0.05;
-                            self.rebuild_circle_bundle = true;
+                            self.rebuild_bundle = true;
                         }
                         Some(VirtualKeyCode::Right) => {
                             self.x_ctr -= 0.05;
-                            self.rebuild_circle_bundle = true;
+                            self.rebuild_bundle = true;
                         }
                         Some(VirtualKeyCode::Up) => {
                             self.y_ctr += 0.05;
-                            self.rebuild_circle_bundle = true;
+                            self.rebuild_bundle = true;
                         }
                         Some(VirtualKeyCode::Down) => {
                             self.y_ctr -= 0.05;
-                            self.rebuild_circle_bundle = true;
+                            self.rebuild_bundle = true;
                         }
                         _ => match self.shape {
                             Shape::Circle => {
                                 self.shape = Shape::Square;
-                                self.rebuild_circle_bundle = true;
+                                self.rebuild_bundle = true;
                             }
                             Shape::Square => {
                                 self.shape = Shape::Cross;
-                                self.rebuild_circle_bundle = true;
+                                self.rebuild_bundle = true;
                             }
                             Shape::Cross => {
                                 self.shape = Shape::Circle;
-                                self.rebuild_circle_bundle = true;
+                                self.rebuild_bundle = true;
                             }
                         },
                     }
@@ -518,7 +311,7 @@ impl State {
     }
 
     fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
-        if self.rebuild_circle_bundle {
+        if self.rebuild_bundle {
             self.bundle = match self.shape {
                 Shape::Circle => create_circle_bundle(
                     &self.device,
@@ -548,7 +341,7 @@ impl State {
                     self.y_ctr,
                 ),
             };
-            self.rebuild_circle_bundle = false;
+            self.rebuild_bundle = false;
         }
         let output = self.surface.get_current_texture()?;
         let view = output
@@ -580,6 +373,12 @@ impl State {
                 depth_stencil_attachment: None,
             });
             render_pass.execute_bundles(iter::once(&self.bundle));
+
+            render_pass.set_pipeline(&self.pipeline_with_texture);
+            render_pass.set_bind_group(0, &self.diffuse_bind_group, &[]);
+            render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
+            render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+            render_pass.draw_indexed(0..self.num_indices, 0, 0..1);
         }
 
         self.queue.submit(std::iter::once(encoder.finish()));
