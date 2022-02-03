@@ -279,14 +279,14 @@ pub fn create_circle_bundle(
     let n_vertices = 1024;
     let mut vertices = Vec::new();
     let v = Vertex {
-        position: [-x_ctr, y_ctr, 0.0f32],
+        position: [x_ctr, y_ctr, 0.0f32],
         color: [1.0, 1.0, 1.0],
     };
     vertices.push(v);
     for i in 0..n_vertices {
         let v = Vertex {
             position: [
-                0.5f32 * (6.28 as f32 * i as f32 / n_vertices as f32).cos() - x_ctr,
+                0.5f32 * (6.28 as f32 * i as f32 / n_vertices as f32).cos() + x_ctr,
                 0.5f32 * (6.28 as f32 * i as f32 / n_vertices as f32).sin() + y_ctr,
                 0.0f32,
             ],

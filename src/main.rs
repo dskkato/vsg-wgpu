@@ -1,4 +1,5 @@
 use std::iter;
+use std::time::{Duration, Instant};
 
 use wgpu::util::DeviceExt;
 use winit::{
@@ -58,9 +59,12 @@ struct State {
     rebuild_bundle: bool,
     diffuse_texture: texture::Texture,
     diffuse_bind_group: wgpu::BindGroup,
+    diffuse_bind_group1: wgpu::BindGroup,
+    diffuse_bind_group2: wgpu::BindGroup,
     x_ctr: f32,
     y_ctr: f32,
     shape: Shape,
+    i: usize,
 }
 
 impl State {
@@ -101,10 +105,6 @@ impl State {
         };
         surface.configure(&device, &config);
 
-        let diffuse_bytes = include_bytes!("sample.tif");
-        let diffuse_texture =
-            texture::Texture::from_bytes(&device, &queue, diffuse_bytes, "sample.tif").unwrap();
-
         let texture_bind_group_layout =
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                 entries: &[
@@ -128,7 +128,56 @@ impl State {
                 label: Some("texture_bind_group_layout"),
             });
 
+        let diffuse_bytes = include_bytes!("sn2_cd1_rnl_gray.tif");
+        let diffuse_texture =
+            texture::Texture::from_bytes(&device, &queue, diffuse_bytes, "sn2_cd1_rnl_gray.tif")
+                .unwrap();
+
         let diffuse_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &texture_bind_group_layout,
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: wgpu::BindingResource::TextureView(&diffuse_texture.view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: wgpu::BindingResource::Sampler(&diffuse_texture.sampler),
+                },
+            ],
+            label: Some("diffuse_bind_group"),
+        });
+
+        let diffuse_bytes = include_bytes!("sn10_cd1_rnl_gray.tif");
+        let diffuse_texture =
+            texture::Texture::from_bytes(&device, &queue, diffuse_bytes, "sn10_cd1_rnl_gray.tif")
+                .unwrap();
+
+        let diffuse_bind_group1 = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &texture_bind_group_layout,
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: wgpu::BindingResource::TextureView(&diffuse_texture.view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: wgpu::BindingResource::Sampler(&diffuse_texture.sampler),
+                },
+            ],
+            label: Some("diffuse_bind_group"),
+        });
+
+        let diffuse_bytes = include_bytes!("sn15_cd3_campus_gray.tif");
+        let diffuse_texture = texture::Texture::from_bytes(
+            &device,
+            &queue,
+            diffuse_bytes,
+            "sn15_cd3_campus_gray.tif",
+        )
+        .unwrap();
+
+        let diffuse_bind_group2 = device.create_bind_group(&wgpu::BindGroupDescriptor {
             layout: &texture_bind_group_layout,
             entries: &[
                 wgpu::BindGroupEntry {
@@ -221,8 +270,8 @@ impl State {
             push_constant_ranges: &[],
         });
 
-        let x_ctr = 0.0f32;
-        let y_ctr = 0.0f32;
+        let x_ctr = 0.7f32;
+        let y_ctr = 0.7f32;
         let bundle = create_circle_bundle(
             &device,
             &config,
@@ -253,9 +302,12 @@ impl State {
             rebuild_bundle,
             diffuse_texture,
             diffuse_bind_group,
+            diffuse_bind_group1,
+            diffuse_bind_group2,
             x_ctr,
             y_ctr,
             shape,
+            i: 0usize,
         }
     }
 
@@ -375,7 +427,18 @@ impl State {
             render_pass.execute_bundles(iter::once(&self.bundle));
 
             render_pass.set_pipeline(&self.pipeline_with_texture);
-            render_pass.set_bind_group(0, &self.diffuse_bind_group, &[]);
+            {
+                if self.i == 0 {
+                    render_pass.set_bind_group(0, &self.diffuse_bind_group, &[]);
+                    self.i = 1;
+                } else if self.i == 1 {
+                    render_pass.set_bind_group(0, &self.diffuse_bind_group1, &[]);
+                    self.i = 2;
+                } else if self.i == 2 {
+                    render_pass.set_bind_group(0, &self.diffuse_bind_group2, &[]);
+                    self.i = 0;
+                }
+            }
             render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
             render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
             render_pass.draw_indexed(0..self.num_indices, 0, 0..1);
@@ -395,6 +458,8 @@ fn main() {
 
     // State::new uses async code, so we're going to wait for it to finish
     let mut state = pollster::block_on(State::new(&window));
+
+    let mut last_frame_inst = Instant::now();
 
     event_loop.run(move |event, _, control_flow| {
         match event {
@@ -433,6 +498,10 @@ fn main() {
                     // All other errors (Outdated, Timeout) should be resolved by the next frame
                     Err(e) => eprintln!("{:?}", e),
                 }
+                if last_frame_inst.elapsed().as_millis() > 17 {
+                    println!("Frame was skipped {:?}", last_frame_inst.elapsed());
+                }
+                last_frame_inst = Instant::now();
             }
             Event::MainEventsCleared => {
                 // RedrawRequested will only trigger once, unless we manually
