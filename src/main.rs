@@ -35,6 +35,12 @@ impl Vertex {
     }
 }
 
+enum Shape {
+    Square,
+    Circle,
+    Cross,
+}
+
 struct State {
     surface: wgpu::Surface,
     device: wgpu::Device,
@@ -43,10 +49,233 @@ struct State {
     shader: wgpu::ShaderModule,
     pipeline_layout: wgpu::PipelineLayout,
     size: winit::dpi::PhysicalSize<u32>,
-    circle_bundle: wgpu::RenderBundle,
+    bundle: wgpu::RenderBundle,
     rebuild_circle_bundle: bool,
     x_ctr: f32,
     y_ctr: f32,
+    shape: Shape,
+}
+
+fn create_cross_bundle(
+    device: &wgpu::Device,
+    config: &wgpu::SurfaceConfiguration,
+    shader: &wgpu::ShaderModule,
+    pipeline_layout: &wgpu::PipelineLayout,
+    sample_count: u32,
+    x_ctr: f32,
+    y_ctr: f32,
+) -> wgpu::RenderBundle {
+    let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+        label: Some("Render Pipeline"),
+        layout: Some(pipeline_layout),
+        vertex: wgpu::VertexState {
+            module: &shader,
+            entry_point: "vs_main",
+            buffers: &[Vertex::desc()],
+        },
+        fragment: Some(wgpu::FragmentState {
+            module: &shader,
+            entry_point: "fs_main",
+            targets: &[wgpu::ColorTargetState {
+                format: config.format,
+                blend: Some(wgpu::BlendState {
+                    color: wgpu::BlendComponent::REPLACE,
+                    alpha: wgpu::BlendComponent::REPLACE,
+                }),
+                write_mask: wgpu::ColorWrites::ALL,
+            }],
+        }),
+        primitive: wgpu::PrimitiveState {
+            topology: wgpu::PrimitiveTopology::TriangleList,
+            strip_index_format: None,
+            front_face: wgpu::FrontFace::Ccw,
+            cull_mode: Some(wgpu::Face::Back),
+            // Setting this to anything other than Fill requires Features::NON_FILL_POLYGON_MODE
+            polygon_mode: wgpu::PolygonMode::Fill,
+            // Requires Features::DEPTH_CLIP_CONTROL
+            unclipped_depth: false,
+            // Requires Features::CONSERVATIVE_RASTERIZATION
+            conservative: false,
+        },
+        depth_stencil: None,
+        multisample: wgpu::MultisampleState {
+            count: 1,
+            mask: !0,
+            alpha_to_coverage_enabled: false,
+        },
+        // If the pipeline will be used with a multiview render pass, this
+        // indicates how many array layers the attachments will have.
+        multiview: None,
+    });
+
+    let x_ctr = x_ctr.abs();
+    let y_ctr = y_ctr.abs();
+    let vertices = [
+        Vertex {
+            position: [-x_ctr / 2.0, -y_ctr, 0.0f32],
+            color: [1.0, 1.0, 1.0],
+        },
+        Vertex {
+            position: [-x_ctr / 2.0, y_ctr, 0.0f32],
+            color: [1.0, 1.0, 1.0],
+        },
+        Vertex {
+            position: [x_ctr / 2.0, -y_ctr, 0.0f32],
+            color: [1.0, 1.0, 1.0],
+        },
+        Vertex {
+            position: [x_ctr / 2.0, y_ctr, 0.0f32],
+            color: [1.0, 1.0, 1.0],
+        },
+        Vertex {
+            position: [-x_ctr, -y_ctr / 2.0, 0.0f32],
+            color: [1.0, 1.0, 1.0],
+        },
+        Vertex {
+            position: [-x_ctr, y_ctr / 2.0, 0.0f32],
+            color: [1.0, 1.0, 1.0],
+        },
+        Vertex {
+            position: [x_ctr, -y_ctr / 2.0, 0.0f32],
+            color: [1.0, 1.0, 1.0],
+        },
+        Vertex {
+            position: [x_ctr, y_ctr / 2.0, 0.0f32],
+            color: [1.0, 1.0, 1.0],
+        },
+    ];
+
+    let indices = [0u16, 2, 1, 2, 3, 1, 4, 6, 5, 6, 7, 5];
+
+    let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        label: Some("Vertex Buffer"),
+        contents: bytemuck::cast_slice(&vertices),
+        usage: wgpu::BufferUsages::VERTEX,
+    });
+    let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        label: Some("Index Buffer"),
+        contents: bytemuck::cast_slice(&indices),
+        usage: wgpu::BufferUsages::INDEX,
+    });
+    let num_indices = indices.len() as u32;
+
+    let mut encoder = device.create_render_bundle_encoder(&wgpu::RenderBundleEncoderDescriptor {
+        label: Some("Render Bundle Encoder"),
+        color_formats: &[config.format],
+        depth_stencil: None,
+        sample_count,
+        multiview: None,
+    });
+    encoder.set_pipeline(&render_pipeline);
+    encoder.set_vertex_buffer(0, vertex_buffer.slice(..));
+    encoder.set_index_buffer(index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+    encoder.draw_indexed(0..num_indices, 0, 0..1);
+    encoder.finish(&wgpu::RenderBundleDescriptor {
+        label: Some("Square"),
+    })
+}
+
+fn create_square_bundle(
+    device: &wgpu::Device,
+    config: &wgpu::SurfaceConfiguration,
+    shader: &wgpu::ShaderModule,
+    pipeline_layout: &wgpu::PipelineLayout,
+    sample_count: u32,
+    x_ctr: f32,
+    y_ctr: f32,
+) -> wgpu::RenderBundle {
+    let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+        label: Some("Render Pipeline"),
+        layout: Some(pipeline_layout),
+        vertex: wgpu::VertexState {
+            module: &shader,
+            entry_point: "vs_main",
+            buffers: &[Vertex::desc()],
+        },
+        fragment: Some(wgpu::FragmentState {
+            module: &shader,
+            entry_point: "fs_main",
+            targets: &[wgpu::ColorTargetState {
+                format: config.format,
+                blend: Some(wgpu::BlendState {
+                    color: wgpu::BlendComponent::REPLACE,
+                    alpha: wgpu::BlendComponent::REPLACE,
+                }),
+                write_mask: wgpu::ColorWrites::ALL,
+            }],
+        }),
+        primitive: wgpu::PrimitiveState {
+            topology: wgpu::PrimitiveTopology::TriangleList,
+            strip_index_format: None,
+            front_face: wgpu::FrontFace::Ccw,
+            cull_mode: Some(wgpu::Face::Back),
+            // Setting this to anything other than Fill requires Features::NON_FILL_POLYGON_MODE
+            polygon_mode: wgpu::PolygonMode::Fill,
+            // Requires Features::DEPTH_CLIP_CONTROL
+            unclipped_depth: false,
+            // Requires Features::CONSERVATIVE_RASTERIZATION
+            conservative: false,
+        },
+        depth_stencil: None,
+        multisample: wgpu::MultisampleState {
+            count: 1,
+            mask: !0,
+            alpha_to_coverage_enabled: false,
+        },
+        // If the pipeline will be used with a multiview render pass, this
+        // indicates how many array layers the attachments will have.
+        multiview: None,
+    });
+
+    let x_ctr = x_ctr.abs();
+    let y_ctr = y_ctr.abs();
+    let vertices = [
+        Vertex {
+            position: [-x_ctr, -y_ctr, 0.0f32],
+            color: [1.0, 1.0, 1.0],
+        },
+        Vertex {
+            position: [-x_ctr, y_ctr, 0.0f32],
+            color: [1.0, 1.0, 1.0],
+        },
+        Vertex {
+            position: [x_ctr, -y_ctr, 0.0f32],
+            color: [1.0, 1.0, 1.0],
+        },
+        Vertex {
+            position: [x_ctr, y_ctr, 0.0f32],
+            color: [1.0, 1.0, 1.0],
+        },
+    ];
+
+    let indices = [0u16, 2, 1, 2, 3, 1];
+
+    let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        label: Some("Vertex Buffer"),
+        contents: bytemuck::cast_slice(&vertices),
+        usage: wgpu::BufferUsages::VERTEX,
+    });
+    let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        label: Some("Index Buffer"),
+        contents: bytemuck::cast_slice(&indices),
+        usage: wgpu::BufferUsages::INDEX,
+    });
+    let num_indices = indices.len() as u32;
+
+    let mut encoder = device.create_render_bundle_encoder(&wgpu::RenderBundleEncoderDescriptor {
+        label: Some("Render Bundle Encoder"),
+        color_formats: &[config.format],
+        depth_stencil: None,
+        sample_count,
+        multiview: None,
+    });
+    encoder.set_pipeline(&render_pipeline);
+    encoder.set_vertex_buffer(0, vertex_buffer.slice(..));
+    encoder.set_index_buffer(index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+    encoder.draw_indexed(0..num_indices, 0, 0..1);
+    encoder.finish(&wgpu::RenderBundleDescriptor {
+        label: Some("Square"),
+    })
 }
 
 fn create_circle_bundle(
@@ -219,6 +448,7 @@ impl State {
             y_ctr,
         );
         let rebuild_circle_bundle = false;
+        let shape = Shape::Circle;
 
         Self {
             surface,
@@ -228,10 +458,11 @@ impl State {
             size,
             shader,
             pipeline_layout,
-            circle_bundle,
+            bundle: circle_bundle,
             rebuild_circle_bundle,
             x_ctr,
             y_ctr,
+            shape,
         }
     }
 
@@ -265,7 +496,20 @@ impl State {
                             self.y_ctr -= 0.05;
                             self.rebuild_circle_bundle = true;
                         }
-                        _ => {}
+                        _ => match self.shape {
+                            Shape::Circle => {
+                                self.shape = Shape::Square;
+                                self.rebuild_circle_bundle = true;
+                            }
+                            Shape::Square => {
+                                self.shape = Shape::Cross;
+                                self.rebuild_circle_bundle = true;
+                            }
+                            Shape::Cross => {
+                                self.shape = Shape::Circle;
+                                self.rebuild_circle_bundle = true;
+                            }
+                        },
                     }
                 }
             }
@@ -275,15 +519,35 @@ impl State {
 
     fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
         if self.rebuild_circle_bundle {
-            self.circle_bundle = create_circle_bundle(
-                &self.device,
-                &self.config,
-                &self.shader,
-                &self.pipeline_layout,
-                1u32,
-                self.x_ctr,
-                self.y_ctr,
-            );
+            self.bundle = match self.shape {
+                Shape::Circle => create_circle_bundle(
+                    &self.device,
+                    &self.config,
+                    &self.shader,
+                    &self.pipeline_layout,
+                    1u32,
+                    self.x_ctr,
+                    self.y_ctr,
+                ),
+                Shape::Square => create_square_bundle(
+                    &self.device,
+                    &self.config,
+                    &self.shader,
+                    &self.pipeline_layout,
+                    1u32,
+                    self.x_ctr,
+                    self.y_ctr,
+                ),
+                Shape::Cross => create_cross_bundle(
+                    &self.device,
+                    &self.config,
+                    &self.shader,
+                    &self.pipeline_layout,
+                    1u32,
+                    self.x_ctr,
+                    self.y_ctr,
+                ),
+            };
             self.rebuild_circle_bundle = false;
         }
         let output = self.surface.get_current_texture()?;
@@ -315,7 +579,7 @@ impl State {
                 }],
                 depth_stencil_attachment: None,
             });
-            render_pass.execute_bundles(iter::once(&self.circle_bundle));
+            render_pass.execute_bundles(iter::once(&self.bundle));
         }
 
         self.queue.submit(std::iter::once(encoder.finish()));
