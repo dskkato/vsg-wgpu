@@ -14,6 +14,7 @@ use shapes::*;
 mod vertex;
 use vertex::VertexTexture;
 
+#[derive(Debug)]
 enum Shape {
     Square,
     Circle,
@@ -428,16 +429,16 @@ impl State {
 
             render_pass.set_pipeline(&self.pipeline_with_texture);
             {
-                if self.i == 0 {
-                    render_pass.set_bind_group(0, &self.diffuse_bind_group, &[]);
-                    self.i = 1;
-                } else if self.i == 1 {
-                    render_pass.set_bind_group(0, &self.diffuse_bind_group1, &[]);
-                    self.i = 2;
-                } else if self.i == 2 {
-                    render_pass.set_bind_group(0, &self.diffuse_bind_group2, &[]);
-                    self.i = 0;
+                match self.i / 60 {
+                    0 => render_pass.set_bind_group(0, &self.diffuse_bind_group, &[]),
+                    1 => render_pass.set_bind_group(0, &self.diffuse_bind_group1, &[]),
+                    2 => render_pass.set_bind_group(0, &self.diffuse_bind_group2, &[]),
+                    _ => {
+                        render_pass.set_bind_group(0, &self.diffuse_bind_group, &[]);
+                        self.i = 1;
+                    }
                 }
+                self.i += 1;
             }
             render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
             render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
