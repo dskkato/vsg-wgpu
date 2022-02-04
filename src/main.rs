@@ -1,5 +1,5 @@
-use std::iter;
 use std::time::{Duration, Instant};
+use std::{iter, thread};
 
 use wgpu::util::DeviceExt;
 use winit::{
@@ -454,7 +454,7 @@ impl State {
 
 fn main() {
     env_logger::init();
-    let event_loop = EventLoop::new();
+    let event_loop = EventLoop::<&str>::with_user_event();
     let window = WindowBuilder::new().build(&event_loop).unwrap();
 
     // State::new uses async code, so we're going to wait for it to finish
@@ -462,7 +462,17 @@ fn main() {
 
     let mut last_frame_inst = Instant::now();
 
+    let event_loop_proxy = event_loop.create_proxy();
+    let handler = thread::spawn(move || {
+        let one_second = Duration::from_millis(1000);
+        loop {
+            event_loop_proxy.send_event("Start").expect("Failed to send event");
+            thread::sleep(one_second);
+        }
+    });
     event_loop.run(move |event, _, control_flow| {
+        *control_flow = ControlFlow::Wait;
+        dbg!(&control_flow);
         match event {
             Event::WindowEvent {
                 ref event,
@@ -508,6 +518,9 @@ fn main() {
                 // RedrawRequested will only trigger once, unless we manually
                 // request it.
                 window.request_redraw();
+            }
+            Event::UserEvent(event) => {
+                println!("UserEvent : {}", event);
             }
             _ => {}
         }
