@@ -1,3 +1,5 @@
+use std::io::Read;
+use std::net::TcpListener;
 use std::time::{Duration, Instant};
 use std::{iter, thread};
 
@@ -465,14 +467,26 @@ fn main() {
     let event_loop_proxy = event_loop.create_proxy();
     let handler = thread::spawn(move || {
         let one_second = Duration::from_millis(1000);
+        let listner = TcpListener::bind("127.0.0.1:7878").unwrap();
         loop {
-            event_loop_proxy.send_event("Start").expect("Failed to send event");
-            thread::sleep(one_second);
+            for stream in listner.incoming() {
+                let mut stream = stream.unwrap();
+
+                // handle_connection
+                let mut buffer = [0; 1024];
+                stream.read(&mut buffer).unwrap();
+
+                println!("Connection established! : {}", stream.peer_addr().unwrap());
+                println!("Contents : {}", String::from_utf8_lossy(&buffer[..]));
+                event_loop_proxy
+                    .send_event("Start")
+                    .expect("Failed to send event");
+            }
         }
     });
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Wait;
-        dbg!(&control_flow);
+        // dbg!(&control_flow);
         match event {
             Event::WindowEvent {
                 ref event,
@@ -510,7 +524,7 @@ fn main() {
                     Err(e) => eprintln!("{:?}", e),
                 }
                 if last_frame_inst.elapsed().as_millis() > 17 {
-                    println!("Frame was skipped {:?}", last_frame_inst.elapsed());
+                    // println!("Frame was skipped {:?}", last_frame_inst.elapsed());
                 }
                 last_frame_inst = Instant::now();
             }
