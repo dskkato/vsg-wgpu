@@ -16,6 +16,8 @@ use shapes::*;
 mod vertex;
 use vertex::VertexTexture;
 
+mod messages;
+
 #[derive(Debug)]
 enum Shape {
     Square,
@@ -471,13 +473,16 @@ fn main() {
         loop {
             for stream in listner.incoming() {
                 let mut stream = stream.unwrap();
+                println!("Connection established! : {}", stream.peer_addr().unwrap());
 
                 // handle_connection
-                let mut buffer = [0; 1024];
-                stream.read(&mut buffer).unwrap();
+                let msg: serde_json::Result<messages::Message>= serde_json::from_reader(stream);
+                if msg.is_err() {
+                    println!("Error: {}", msg.err().unwrap());
+                    continue;
+                }
 
-                println!("Connection established! : {}", stream.peer_addr().unwrap());
-                println!("Contents : {}", String::from_utf8_lossy(&buffer[..]));
+                println!("Contents : {:?}", msg);
                 event_loop_proxy
                     .send_event("Start")
                     .expect("Failed to send event");
