@@ -2,6 +2,7 @@ use wgpu::util::DeviceExt;
 
 use crate::vertex::Vertex;
 
+
 pub fn create_cross_bundle(
     device: &wgpu::Device,
     config: &wgpu::SurfaceConfiguration,

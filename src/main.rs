@@ -3,6 +3,7 @@ use std::net::TcpListener;
 use std::time::{Duration, Instant};
 use std::{iter, thread};
 
+use log::info;
 use wgpu::util::DeviceExt;
 use winit::{
     event::*,
@@ -17,13 +18,8 @@ mod vertex;
 use vertex::VertexTexture;
 
 mod messages;
-
-#[derive(Debug)]
-enum Shape {
-    Square,
-    Circle,
-    Cross,
-}
+use messages::Coordinates;
+use messages::Shape;
 
 const VERTICES: &[VertexTexture] = &[
     VertexTexture {
@@ -287,7 +283,10 @@ impl State {
             y_ctr,
         );
         let rebuild_bundle = false;
-        let shape = Shape::Circle;
+        let shape = Shape::Circle {
+            radius: 0.2f32,
+            ctr: Coordinates { x: x_ctr, y: y_ctr },
+        };
 
         Self {
             surface,
@@ -347,16 +346,35 @@ impl State {
                             self.rebuild_bundle = true;
                         }
                         _ => match self.shape {
-                            Shape::Circle => {
-                                self.shape = Shape::Square;
+                            Shape::Circle { .. } => {
+                                self.shape = Shape::Square {
+                                    size: 0.3f32,
+                                    ctr: Coordinates {
+                                        x: self.x_ctr,
+                                        y: self.y_ctr,
+                                    },
+                                };
                                 self.rebuild_bundle = true;
                             }
-                            Shape::Square => {
-                                self.shape = Shape::Cross;
+                            Shape::Square { .. } => {
+                                self.shape = Shape::Cross {
+                                    size: 0.3f32,
+                                    line_width: 0.132,
+                                    ctr: Coordinates {
+                                        x: self.x_ctr,
+                                        y: self.y_ctr,
+                                    },
+                                };
                                 self.rebuild_bundle = true;
                             }
-                            Shape::Cross => {
-                                self.shape = Shape::Circle;
+                            Shape::Cross { .. } => {
+                                self.shape = Shape::Circle {
+                                    radius: 0.2f32,
+                                    ctr: Coordinates {
+                                        x: self.x_ctr,
+                                        y: self.y_ctr,
+                                    },
+                                };
                                 self.rebuild_bundle = true;
                             }
                         },
@@ -370,7 +388,7 @@ impl State {
     fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
         if self.rebuild_bundle {
             self.bundle = match self.shape {
-                Shape::Circle => create_circle_bundle(
+                Shape::Circle { .. } => create_circle_bundle(
                     &self.device,
                     &self.config,
                     &self.shader,
@@ -379,7 +397,7 @@ impl State {
                     self.x_ctr,
                     self.y_ctr,
                 ),
-                Shape::Square => create_square_bundle(
+                Shape::Square { .. } => create_square_bundle(
                     &self.device,
                     &self.config,
                     &self.shader,
@@ -388,7 +406,7 @@ impl State {
                     self.x_ctr,
                     self.y_ctr,
                 ),
-                Shape::Cross => create_cross_bundle(
+                Shape::Cross { .. } => create_cross_bundle(
                     &self.device,
                     &self.config,
                     &self.shader,
@@ -476,7 +494,7 @@ fn main() {
                 println!("Connection established! : {}", stream.peer_addr().unwrap());
 
                 // handle_connection
-                let msg: serde_json::Result<messages::Message>= serde_json::from_reader(stream);
+                let msg: serde_json::Result<messages::Message> = serde_json::from_reader(stream);
                 if msg.is_err() {
                     println!("Error: {}", msg.err().unwrap());
                     continue;
@@ -491,7 +509,7 @@ fn main() {
     });
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Wait;
-        // dbg!(&control_flow);
+        // info!("{:?}", event);
         match event {
             Event::WindowEvent {
                 ref event,
