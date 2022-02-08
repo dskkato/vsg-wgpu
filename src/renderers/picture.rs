@@ -1,7 +1,6 @@
-use std::iter;
 
 use super::StimulusRenderer;
-use crate::{texture, vertex::VertexTexture, Coordinates};
+use crate::{texture, vertex::VertexTexture};
 use wgpu::util::DeviceExt;
 
 const VERTICES: &[VertexTexture] = &[
@@ -31,18 +30,14 @@ pub struct Picture {
     index_buffer: wgpu::Buffer,
     num_indices: u32,
     diffuse_bind_group: wgpu::BindGroup,
+    #[allow(dead_code)]
     diffuse_bind_group1: wgpu::BindGroup,
+    #[allow(dead_code)]
     diffuse_bind_group2: wgpu::BindGroup,
 }
 
 impl Picture {
-    pub fn new(
-        device: &wgpu::Device,
-        queue: &wgpu::Queue,
-        format: &wgpu::TextureFormat,
-        x_ctr: f32,
-        y_ctr: f32,
-    ) -> Self {
+    pub fn new(device: &wgpu::Device, queue: &wgpu::Queue, format: &wgpu::TextureFormat) -> Self {
         let texture_bind_group_layout =
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                 entries: &[

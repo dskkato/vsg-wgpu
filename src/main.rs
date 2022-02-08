@@ -1,20 +1,16 @@
-use std::io::Read;
 use std::net::TcpListener;
-use std::time::{Duration, Instant};
-use std::{iter, thread};
+use std::thread;
+use std::time::Instant;
 
-use log::info;
-use wgpu::util::DeviceExt;
 use winit::{
     event::*,
     event_loop::{ControlFlow, EventLoop},
     window::{Window, WindowBuilder},
 };
 
+mod renderers;
 mod texture;
 mod vertex;
-use vertex::VertexTexture;
-mod renderers;
 use renderers::*;
 
 mod messages;
@@ -33,7 +29,6 @@ struct State {
     x_ctr: f32,
     y_ctr: f32,
     shape: Shape,
-    i: usize,
 }
 
 impl State {
@@ -83,7 +78,7 @@ impl State {
             ctr: Coordinates { x: x_ctr, y: y_ctr },
         };
 
-        let picture = Picture::new(&device, &queue, &config.format, x_ctr, y_ctr);
+        let picture = Picture::new(&device, &queue, &config.format);
 
         Self {
             surface,
@@ -97,7 +92,6 @@ impl State {
             x_ctr,
             y_ctr,
             shape,
-            i: 0usize,
         }
     }
 
@@ -246,12 +240,11 @@ fn main() {
     let mut last_frame_inst = Instant::now();
 
     let event_loop_proxy = event_loop.create_proxy();
-    let handler = thread::spawn(move || {
-        let one_second = Duration::from_millis(1000);
+    let _handler = thread::spawn(move || {
         let listner = TcpListener::bind("127.0.0.1:7878").unwrap();
         loop {
             for stream in listner.incoming() {
-                let mut stream = stream.unwrap();
+                let stream = stream.unwrap();
                 println!("Connection established! : {}", stream.peer_addr().unwrap());
 
                 // handle_connection
