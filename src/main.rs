@@ -11,57 +11,25 @@ use winit::{
     window::{Window, WindowBuilder},
 };
 
-mod shapes;
 mod texture;
-use shapes::*;
 mod vertex;
 use vertex::VertexTexture;
+mod renderers;
+use renderers::*;
 
 mod messages;
 use messages::Coordinates;
 use messages::Shape;
-
-const VERTICES: &[VertexTexture] = &[
-    VertexTexture {
-        position: [0.5, 0.5, 0.0],
-        tex_coords: [1.0, 0.0],
-    }, // upper right
-    VertexTexture {
-        position: [-0.5, 0.5, 0.0],
-        tex_coords: [0.0, 0.0],
-    }, // upper left
-    VertexTexture {
-        position: [0.5, -0.5, 0.0],
-        tex_coords: [1.0, 1.0],
-    }, // lower right
-    VertexTexture {
-        position: [-0.5, -0.5, 0.0],
-        tex_coords: [0.0, 1.0],
-    }, // lower left
-];
-
-const INDICES: &[u16] = &[0, 1, 2, 1, 3, 2];
 
 struct State {
     surface: wgpu::Surface,
     device: wgpu::Device,
     queue: wgpu::Queue,
     config: wgpu::SurfaceConfiguration,
-    shader: wgpu::ShaderModule,
-    pipeline_layout: wgpu::PipelineLayout,
-    shader_with_texture: wgpu::ShaderModule,
-    pipeline_with_texture_layout: wgpu::PipelineLayout,
-    pipeline_with_texture: wgpu::RenderPipeline,
-    vertex_buffer: wgpu::Buffer,
-    index_buffer: wgpu::Buffer,
-    num_indices: u32,
+    picture: Picture,
     size: winit::dpi::PhysicalSize<u32>,
-    bundle: wgpu::RenderBundle,
+    bundle: Box<dyn renderers::StimulusRenderer>,
     rebuild_bundle: bool,
-    diffuse_texture: texture::Texture,
-    diffuse_bind_group: wgpu::BindGroup,
-    diffuse_bind_group1: wgpu::BindGroup,
-    diffuse_bind_group2: wgpu::BindGroup,
     x_ctr: f32,
     y_ctr: f32,
     shape: Shape,
@@ -106,208 +74,26 @@ impl State {
         };
         surface.configure(&device, &config);
 
-        let texture_bind_group_layout =
-            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                entries: &[
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 0,
-                        visibility: wgpu::ShaderStages::FRAGMENT,
-                        ty: wgpu::BindingType::Texture {
-                            multisampled: false,
-                            view_dimension: wgpu::TextureViewDimension::D2,
-                            sample_type: wgpu::TextureSampleType::Float { filterable: true },
-                        },
-                        count: None,
-                    },
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 1,
-                        visibility: wgpu::ShaderStages::FRAGMENT,
-                        ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
-                        count: None,
-                    },
-                ],
-                label: Some("texture_bind_group_layout"),
-            });
-
-        let diffuse_bytes = include_bytes!("sn2_cd1_rnl_gray.tif");
-        let diffuse_texture =
-            texture::Texture::from_bytes(&device, &queue, diffuse_bytes, "sn2_cd1_rnl_gray.tif")
-                .unwrap();
-
-        let diffuse_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            layout: &texture_bind_group_layout,
-            entries: &[
-                wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: wgpu::BindingResource::TextureView(&diffuse_texture.view),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 1,
-                    resource: wgpu::BindingResource::Sampler(&diffuse_texture.sampler),
-                },
-            ],
-            label: Some("diffuse_bind_group"),
-        });
-
-        let diffuse_bytes = include_bytes!("sn10_cd1_rnl_gray.tif");
-        let diffuse_texture =
-            texture::Texture::from_bytes(&device, &queue, diffuse_bytes, "sn10_cd1_rnl_gray.tif")
-                .unwrap();
-
-        let diffuse_bind_group1 = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            layout: &texture_bind_group_layout,
-            entries: &[
-                wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: wgpu::BindingResource::TextureView(&diffuse_texture.view),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 1,
-                    resource: wgpu::BindingResource::Sampler(&diffuse_texture.sampler),
-                },
-            ],
-            label: Some("diffuse_bind_group"),
-        });
-
-        let diffuse_bytes = include_bytes!("sn15_cd3_campus_gray.tif");
-        let diffuse_texture = texture::Texture::from_bytes(
-            &device,
-            &queue,
-            diffuse_bytes,
-            "sn15_cd3_campus_gray.tif",
-        )
-        .unwrap();
-
-        let diffuse_bind_group2 = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            layout: &texture_bind_group_layout,
-            entries: &[
-                wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: wgpu::BindingResource::TextureView(&diffuse_texture.view),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 1,
-                    resource: wgpu::BindingResource::Sampler(&diffuse_texture.sampler),
-                },
-            ],
-            label: Some("diffuse_bind_group"),
-        });
-
-        let shader_with_texture = device.create_shader_module(&wgpu::ShaderModuleDescriptor {
-            label: Some("TextureShader"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("shader_with_texture.wgsl").into()),
-        });
-
-        let pipeline_with_texture_layout =
-            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some("Texture Render Pipeline Layout"),
-                bind_group_layouts: &[&texture_bind_group_layout],
-                push_constant_ranges: &[],
-            });
-
-        let pipeline_with_texture =
-            device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                label: Some("Texture Render Pipeline"),
-                layout: Some(&pipeline_with_texture_layout),
-                vertex: wgpu::VertexState {
-                    module: &shader_with_texture,
-                    entry_point: "vs_main",
-                    buffers: &[VertexTexture::desc()],
-                },
-                fragment: Some(wgpu::FragmentState {
-                    module: &shader_with_texture,
-                    entry_point: "fs_main",
-                    targets: &[wgpu::ColorTargetState {
-                        format: config.format,
-                        blend: Some(wgpu::BlendState {
-                            color: wgpu::BlendComponent::REPLACE,
-                            alpha: wgpu::BlendComponent::REPLACE,
-                        }),
-                        write_mask: wgpu::ColorWrites::ALL,
-                    }],
-                }),
-                primitive: wgpu::PrimitiveState {
-                    topology: wgpu::PrimitiveTopology::TriangleList,
-                    strip_index_format: None,
-                    front_face: wgpu::FrontFace::Ccw,
-                    cull_mode: Some(wgpu::Face::Back),
-                    // Setting this to anything other than Fill requires Features::NON_FILL_POLYGON_MODE
-                    polygon_mode: wgpu::PolygonMode::Fill,
-                    // Requires Features::DEPTH_CLIP_CONTROL
-                    unclipped_depth: false,
-                    // Requires Features::CONSERVATIVE_RASTERIZATION
-                    conservative: false,
-                },
-                depth_stencil: None,
-                multisample: wgpu::MultisampleState {
-                    count: 1,
-                    mask: !0,
-                    alpha_to_coverage_enabled: false,
-                },
-                // If the pipeline will be used with a multiview render pass, this
-                // indicates how many array layers the attachments will have.
-                multiview: None,
-            });
-        let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Texture Vertex Buffer"),
-            contents: bytemuck::cast_slice(VERTICES),
-            usage: wgpu::BufferUsages::VERTEX,
-        });
-        let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Texture Index Buffer"),
-            contents: bytemuck::cast_slice(INDICES),
-            usage: wgpu::BufferUsages::INDEX,
-        });
-        let num_indices = INDICES.len() as u32;
-
-        let shader = device.create_shader_module(&wgpu::ShaderModuleDescriptor {
-            label: Some("Shader"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
-        });
-
-        let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: Some("Render Pipeline Layout"),
-            bind_group_layouts: &[],
-            push_constant_ranges: &[],
-        });
-
         let x_ctr = 0.7f32;
         let y_ctr = 0.7f32;
-        let bundle = create_circle_bundle(
-            &device,
-            &config,
-            &shader,
-            &pipeline_layout,
-            1u32,
-            x_ctr,
-            y_ctr,
-        );
+        let bundle = Box::new(Circle::new(&device, &config.format, x_ctr, y_ctr));
         let rebuild_bundle = false;
         let shape = Shape::Circle {
             radius: 0.2f32,
             ctr: Coordinates { x: x_ctr, y: y_ctr },
         };
 
+        let picture = Picture::new(&device, &queue, &config.format, x_ctr, y_ctr);
+
         Self {
             surface,
             device,
             queue,
             config,
+            picture,
             size,
-            shader,
-            pipeline_layout,
-            shader_with_texture,
-            pipeline_with_texture_layout,
-            pipeline_with_texture,
-            vertex_buffer,
-            index_buffer,
-            num_indices,
             bundle,
             rebuild_bundle,
-            diffuse_texture,
-            diffuse_bind_group,
-            diffuse_bind_group1,
-            diffuse_bind_group2,
             x_ctr,
             y_ctr,
             shape,
@@ -388,33 +174,24 @@ impl State {
     fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
         if self.rebuild_bundle {
             self.bundle = match self.shape {
-                Shape::Circle { .. } => create_circle_bundle(
+                Shape::Circle { .. } => Box::new(Circle::new(
                     &self.device,
-                    &self.config,
-                    &self.shader,
-                    &self.pipeline_layout,
-                    1u32,
+                    &self.config.format,
                     self.x_ctr,
                     self.y_ctr,
-                ),
-                Shape::Square { .. } => create_square_bundle(
+                )),
+                Shape::Square { .. } => Box::new(Rectangle::new(
                     &self.device,
-                    &self.config,
-                    &self.shader,
-                    &self.pipeline_layout,
-                    1u32,
+                    &self.config.format,
                     self.x_ctr,
                     self.y_ctr,
-                ),
-                Shape::Cross { .. } => create_cross_bundle(
+                )),
+                Shape::Cross { .. } => Box::new(Cross::new(
                     &self.device,
-                    &self.config,
-                    &self.shader,
-                    &self.pipeline_layout,
-                    1u32,
+                    &self.config.format,
                     self.x_ctr,
                     self.y_ctr,
-                ),
+                )),
             };
             self.rebuild_bundle = false;
         }
@@ -447,24 +224,8 @@ impl State {
                 }],
                 depth_stencil_attachment: None,
             });
-            render_pass.execute_bundles(iter::once(&self.bundle));
-
-            render_pass.set_pipeline(&self.pipeline_with_texture);
-            {
-                match self.i / 60 {
-                    0 => render_pass.set_bind_group(0, &self.diffuse_bind_group, &[]),
-                    1 => render_pass.set_bind_group(0, &self.diffuse_bind_group1, &[]),
-                    2 => render_pass.set_bind_group(0, &self.diffuse_bind_group2, &[]),
-                    _ => {
-                        render_pass.set_bind_group(0, &self.diffuse_bind_group, &[]);
-                        self.i = 1;
-                    }
-                }
-                self.i += 1;
-            }
-            render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
-            render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
-            render_pass.draw_indexed(0..self.num_indices, 0, 0..1);
+            self.bundle.render(&mut render_pass);
+            self.picture.render(&mut render_pass);
         }
 
         self.queue.submit(std::iter::once(encoder.finish()));

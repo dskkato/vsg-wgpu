@@ -41,6 +41,6 @@ mod tests {
             },
         };
         let serialized = serde_json::to_string(&msg).unwrap();
-        println!("{}", serialized); 
+        println!("{}", serialized);
     }
 }
