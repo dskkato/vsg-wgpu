@@ -1,4 +1,3 @@
-
 use super::StimulusRenderer;
 use crate::{texture, vertex::VertexTexture};
 use wgpu::util::DeviceExt;
@@ -131,7 +130,9 @@ impl Picture {
 
         let shader_with_texture = device.create_shader_module(&wgpu::ShaderModuleDescriptor {
             label: Some("TextureShader"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("shader_with_texture.wgsl").into()),
+            source: wgpu::ShaderSource::Wgsl(
+                include_str!("../shaders/shader_with_texture.wgsl").into(),
+            ),
         });
 
         let pipeline_with_texture_layout =
