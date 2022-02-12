@@ -1,6 +1,12 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+pub enum Command {
+    Draw(Shape),
+    Clear([f64; 4]),
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Coordinates {
     pub x: f32,
     pub y: f32,
@@ -24,8 +30,9 @@ pub enum Shape {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct Message {
-    shape: Shape,
+pub enum Message {
+    SetShape(Shape),
+    SetBgColor([f64; 4]),
 }
 
 #[cfg(test)]
@@ -34,12 +41,14 @@ mod tests {
 
     #[test]
     fn a() {
-        let msg = Message {
-            shape: Shape::Square {
-                size: 10.0,
-                ctr: Coordinates { x: 0.0, y: 0.0 },
-            },
-        };
+        let msg = Message::SetShape(Shape::Square {
+            size: 0.2,
+            ctr: Coordinates { x: 0.0, y: 0.0 },
+        });
+        let serialized = serde_json::to_string(&msg).unwrap();
+        println!("{}", serialized);
+
+        let msg = Message::SetBgColor([0.1, 0.2, 0.3, 1.0]);
         let serialized = serde_json::to_string(&msg).unwrap();
         println!("{}", serialized);
     }

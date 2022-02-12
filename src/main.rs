@@ -15,8 +15,8 @@ mod vertex;
 use renderers::*;
 
 mod messages;
-use messages::Coordinates;
 use messages::Shape;
+use messages::{Command, Coordinates};
 
 struct State {
     surface: wgpu::Surface,
@@ -30,6 +30,7 @@ struct State {
     x_ctr: f32,
     y_ctr: f32,
     shape: Shape,
+    bg_color: wgpu::Color,
 }
 
 impl State {
@@ -87,6 +88,7 @@ impl State {
         };
 
         let picture = Picture::new(&device, &queue, &config.format);
+        let bg_color = wgpu::Color::BLACK;
 
         Self {
             surface,
@@ -100,6 +102,7 @@ impl State {
             x_ctr,
             y_ctr,
             shape,
+            bg_color,
         }
     }
 
@@ -173,6 +176,51 @@ impl State {
         }
     }
 
+    pub fn update_shape(&mut self, shape: Shape) {
+        self.bundle = match shape {
+            Shape::Circle { radius, ctr } => Box::new(Circle::new(
+                &self.device,
+                &self.config.format,
+                ctr.x,
+                ctr.y,
+                radius,
+                &[0.2, 0.0, 0.0, 1.0],
+            )),
+            Shape::Square { size, ctr } => Box::new(Rectangle::new(
+                &self.device,
+                &self.config.format,
+                ctr.x,
+                ctr.y,
+                size,
+                size,
+                &[0.0, 0.2, 0.0, 1.0],
+            )),
+            Shape::Cross {
+                size,
+                line_width,
+                ctr,
+            } => Box::new(Cross::new(
+                &self.device,
+                &self.config.format,
+                ctr.x,
+                ctr.y,
+                size,
+                size,
+                line_width,
+                &[0.0, 0.0, 0.2, 1.0],
+            )),
+        };
+    }
+
+    pub fn update_bg_color(&mut self, bg_color: &[f64; 4]) {
+        self.bg_color = wgpu::Color {
+            r: bg_color[0],
+            g: bg_color[1],
+            b: bg_color[2],
+            a: bg_color[3],
+        };
+    }
+
     fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
         if self.rebuild_bundle {
             self.bundle = match self.shape {
@@ -224,12 +272,7 @@ impl State {
                     view: &view,
                     resolve_target: None,
                     ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color {
-                            r: 0.1,
-                            g: 0.2,
-                            b: 0.3,
-                            a: 1.0,
-                        }),
+                        load: wgpu::LoadOp::Clear(self.bg_color),
                         store: true,
                     },
                 }],
@@ -248,7 +291,7 @@ impl State {
 
 fn main() {
     env_logger::init();
-    let event_loop = EventLoop::<&str>::with_user_event();
+    let event_loop = EventLoop::<Command>::with_user_event();
     let window = WindowBuilder::new().build(&event_loop).unwrap();
 
     // State::new uses async code, so we're going to wait for it to finish
@@ -272,9 +315,18 @@ fn main() {
                 }
 
                 println!("Contents : {:?}", msg);
-                event_loop_proxy
-                    .send_event("Start")
-                    .expect("Failed to send event");
+                match msg.unwrap() {
+                    messages::Message::SetShape(shape) => {
+                        event_loop_proxy
+                            .send_event(Command::Draw(shape))
+                            .expect("Failed to send event");
+                    }
+                    messages::Message::SetBgColor(color) => {
+                        event_loop_proxy
+                            .send_event(Command::Clear(color))
+                            .expect("Failed to send event");
+                    }
+                }
             }
         }
     });
@@ -328,7 +380,15 @@ fn main() {
                 window.request_redraw();
             }
             Event::UserEvent(event) => {
-                println!("UserEvent : {}", event);
+                println!("UserEvent : {:?}", event);
+                match event {
+                    Command::Draw(shape) => {
+                        state.update_shape(shape);
+                    }
+                    Command::Clear(color) => {
+                        state.update_bg_color(&color);
+                    }
+                }
             }
             _ => {}
         }
