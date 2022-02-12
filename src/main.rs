@@ -8,6 +8,7 @@ use winit::{
     window::{Window, WindowBuilder},
 };
 
+mod graphics;
 mod renderers;
 mod texture;
 mod vertex;
@@ -71,7 +72,14 @@ impl State {
 
         let x_ctr = 0.7f32;
         let y_ctr = 0.7f32;
-        let bundle = Box::new(Circle::new(&device, &config.format, x_ctr, y_ctr));
+        let bundle = Box::new(Circle::new(
+            &device,
+            &config.format,
+            x_ctr,
+            y_ctr,
+            0.2,
+            &[0.2, 0.0, 0.0, 1.0],
+        ));
         let rebuild_bundle = false;
         let shape = Shape::Circle {
             radius: 0.2f32,
@@ -110,11 +118,11 @@ impl State {
                 if let ElementState::Pressed = input.state {
                     match input.virtual_keycode {
                         Some(VirtualKeyCode::Left) => {
-                            self.x_ctr += 0.05;
+                            self.x_ctr -= 0.05;
                             self.rebuild_bundle = true;
                         }
                         Some(VirtualKeyCode::Right) => {
-                            self.x_ctr -= 0.05;
+                            self.x_ctr += 0.05;
                             self.rebuild_bundle = true;
                         }
                         Some(VirtualKeyCode::Up) => {
@@ -173,18 +181,27 @@ impl State {
                     &self.config.format,
                     self.x_ctr,
                     self.y_ctr,
+                    0.2,
+                    &[0.2, 0.0, 0.0, 1.0],
                 )),
                 Shape::Square { .. } => Box::new(Rectangle::new(
                     &self.device,
                     &self.config.format,
                     self.x_ctr,
                     self.y_ctr,
+                    0.9,
+                    0.7,
+                    &[0.0, 0.2, 0.0, 1.0],
                 )),
                 Shape::Cross { .. } => Box::new(Cross::new(
                     &self.device,
                     &self.config.format,
                     self.x_ctr,
                     self.y_ctr,
+                    0.9,
+                    0.6,
+                    0.1,
+                    &[0.0, 0.0, 0.2, 1.0],
                 )),
             };
             self.rebuild_bundle = false;
@@ -218,8 +235,8 @@ impl State {
                 }],
                 depth_stencil_attachment: None,
             });
-            self.bundle.render(&mut render_pass);
             self.picture.render(&mut render_pass);
+            self.bundle.render(&mut render_pass);
         }
 
         self.queue.submit(std::iter::once(encoder.finish()));

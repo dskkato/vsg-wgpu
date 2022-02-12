@@ -4,19 +4,19 @@ use wgpu::util::DeviceExt;
 
 const VERTICES: &[VertexTexture] = &[
     VertexTexture {
-        position: [0.5, 0.5, 0.0],
+        position: [0.5, 0.5],
         tex_coords: [1.0, 0.0],
     }, // upper right
     VertexTexture {
-        position: [-0.5, 0.5, 0.0],
+        position: [-0.5, 0.5],
         tex_coords: [0.0, 0.0],
     }, // upper left
     VertexTexture {
-        position: [0.5, -0.5, 0.0],
+        position: [0.5, -0.5],
         tex_coords: [1.0, 1.0],
     }, // lower right
     VertexTexture {
-        position: [-0.5, -0.5, 0.0],
+        position: [-0.5, -0.5],
         tex_coords: [0.0, 1.0],
     }, // lower left
 ];
@@ -210,8 +210,6 @@ impl Picture {
 }
 
 impl StimulusRenderer for Picture {
-    fn prepare(&mut self) {}
-
     fn render<'rpass, 'pass>(&'rpass self, render_pass: &mut wgpu::RenderPass<'pass>)
     where
         'rpass: 'pass,

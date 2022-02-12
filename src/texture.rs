@@ -1,8 +1,7 @@
 use std::num::NonZeroU32;
 
 use anyhow::*;
-use image::GenericImageView;
-
+use image_rs::{DynamicImage, GenericImageView};
 pub struct Texture {
     pub texture: wgpu::Texture,
     pub view: wgpu::TextureView,
@@ -16,22 +15,22 @@ impl Texture {
         bytes: &[u8],
         label: &str,
     ) -> Result<Self> {
-        let img = image::load_from_memory(bytes)?;
+        let img = image_rs::load_from_memory(bytes)?;
         Self::from_image(device, queue, &img, Some(label))
     }
 
     pub fn from_image(
         device: &wgpu::Device,
         queue: &wgpu::Queue,
-        img: &image::DynamicImage,
+        img: &DynamicImage,
         label: Option<&str>,
     ) -> Result<Self> {
         let rgba = img.to_rgba8();
-        let dimensions = img.dimensions();
+        let (width, height) = img.dimensions();
 
         let size = wgpu::Extent3d {
-            width: dimensions.0,
-            height: dimensions.1,
+            width,
+            height,
             depth_or_array_layers: 1,
         };
         let texture = device.create_texture(&wgpu::TextureDescriptor {
@@ -54,8 +53,8 @@ impl Texture {
             &rgba,
             wgpu::ImageDataLayout {
                 offset: 0,
-                bytes_per_row: NonZeroU32::new(4 * dimensions.0),
-                rows_per_image: NonZeroU32::new(dimensions.1),
+                bytes_per_row: NonZeroU32::new(4 * width),
+                rows_per_image: NonZeroU32::new(height),
             },
             size,
         );
