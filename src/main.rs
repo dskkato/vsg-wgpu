@@ -1,6 +1,7 @@
-use std::net::TcpListener;
+use std::io::Write;
 use std::thread;
 use std::time::Instant;
+use std::{io::Read, net::TcpListener};
 
 use winit::{
     event::*,
@@ -302,30 +303,53 @@ fn main() {
     let event_loop_proxy = event_loop.create_proxy();
     let _handler = thread::spawn(move || {
         let listner = TcpListener::bind("127.0.0.1:7878").unwrap();
+        let mut buffer = [0; 1024];
         loop {
             for stream in listner.incoming() {
-                let stream = stream.unwrap();
+                let mut stream = stream.unwrap();
                 println!("Connection established! : {}", stream.peer_addr().unwrap());
+                loop {
+                    let msg: serde_json::Result<messages::Message> = match stream.read(&mut buffer)
+                    {
+                        Ok(n) => {
+                            if n == 0 {
+                                println!("Connection closed!");
+                                stream.write(b"{\"type\": \"close\"}").unwrap();
+                                stream.flush().unwrap();
+                                break;
+                            }
+                            serde_json::from_slice(&buffer[0..n])
+                        }
+                        _ => {
+                            stream.write(b"{\"type\": \"err\"}").unwrap();
+                            stream.flush().unwrap();
+                            continue;
+                        }
+                    };
 
-                // handle_connection
-                let msg: serde_json::Result<messages::Message> = serde_json::from_reader(stream);
-                if msg.is_err() {
-                    println!("Error: {}", msg.err().unwrap());
-                    continue;
-                }
+                    // handle_connection
+                    if msg.is_err() {
+                        println!("Error: {}", msg.err().unwrap());
+                        stream.write(b"{\"type\": \"err\"}").unwrap();
+                        stream.flush().unwrap();
+                        continue;
+                    }
 
-                println!("Contents : {:?}", msg);
-                match msg.unwrap() {
-                    messages::Message::SetShape(shape) => {
-                        event_loop_proxy
-                            .send_event(Command::Draw(shape))
-                            .expect("Failed to send event");
+                    println!("Contents : {:?}", msg);
+                    match msg.unwrap() {
+                        messages::Message::SetShape(shape) => {
+                            event_loop_proxy
+                                .send_event(Command::Draw(shape))
+                                .expect("Failed to send event");
+                        }
+                        messages::Message::SetBgColor(color) => {
+                            event_loop_proxy
+                                .send_event(Command::Clear(color))
+                                .expect("Failed to send event");
+                        }
                     }
-                    messages::Message::SetBgColor(color) => {
-                        event_loop_proxy
-                            .send_event(Command::Clear(color))
-                            .expect("Failed to send event");
-                    }
+                    stream.write(b"{\"type\": \"success\"}").unwrap();
+                    stream.flush().unwrap();
                 }
             }
         }
