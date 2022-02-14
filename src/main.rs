@@ -3,10 +3,11 @@ use std::thread;
 use std::time::Instant;
 use std::{io::Read, net::TcpListener};
 
+use winit::dpi::PhysicalSize;
 use winit::{
     event::*,
     event_loop::{ControlFlow, EventLoop},
-    window::{Window, WindowBuilder},
+    window::{Fullscreen, Window, WindowBuilder},
 };
 
 mod graphics;
@@ -293,10 +294,21 @@ impl State {
 fn main() {
     env_logger::init();
     let event_loop = EventLoop::<Command>::with_user_event();
-    let window = WindowBuilder::new().build(&event_loop).unwrap();
+    let window = WindowBuilder::new()
+        .with_visible(false)
+        .with_inner_size(PhysicalSize::new(1920, 1080))
+        .build(&event_loop)
+        .unwrap();
+    // window.set_fullscreen(Some(Fullscreen::Borderless(None)));
+    // let monitor = window.available_monitors().next().unwrap();
+    // window.set_fullscreen(Some(Fullscreen::Borderless(Some(monitor))));
+    // let video_mode = monitor.video_modes().next().unwrap();
+    // window.set_fullscreen(Some(Fullscreen::Exclusive(video_mode)));
+    window.set_cursor_visible(false);
 
     // State::new uses async code, so we're going to wait for it to finish
     let mut state = pollster::block_on(State::new(&window));
+    window.set_visible(true);
 
     let mut last_frame_inst = Instant::now();
 
@@ -384,6 +396,10 @@ fn main() {
                 }
             }
             Event::RedrawRequested(window_id) if window_id == window.id() => {
+                // window.request_redraw(); is not called and this pass will not be executed.
+                // This is for continuous rendering.
+            }
+            Event::MainEventsCleared => {
                 match state.render() {
                     Ok(_) => {}
                     // Reconfigure the surface if lost
@@ -397,11 +413,6 @@ fn main() {
                     // println!("Frame was skipped {:?}", last_frame_inst.elapsed());
                 }
                 last_frame_inst = Instant::now();
-            }
-            Event::MainEventsCleared => {
-                // RedrawRequested will only trigger once, unless we manually
-                // request it.
-                window.request_redraw();
             }
             Event::UserEvent(event) => {
                 println!("UserEvent : {:?}", event);
