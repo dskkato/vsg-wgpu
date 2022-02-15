@@ -10,6 +10,8 @@ use winit::{
     window::{Fullscreen, Window, WindowBuilder},
 };
 
+use clap::Parser;
+
 mod graphics;
 mod renderers;
 mod texture;
@@ -19,6 +21,19 @@ use renderers::*;
 mod messages;
 use messages::Shape;
 use messages::{Command, Coordinates};
+
+#[derive(Parser, Debug)]
+#[clap(author, version, about, long_about = None)]
+struct Args {
+    #[clap(short, long, default_value = "127.0.0.1")]
+    host: String,
+
+    #[clap(short, long, default_value = "7878")]
+    port: String,
+
+    #[clap(short, long)]
+    fullscreen: bool,
+}
 
 struct State {
     surface: wgpu::Surface,
@@ -293,17 +308,23 @@ impl State {
 
 fn main() {
     env_logger::init();
+    let args = Args::parse();
+    dbg!(&args);
+
     let event_loop = EventLoop::<Command>::with_user_event();
     let window = WindowBuilder::new()
         .with_visible(false)
-        .with_inner_size(PhysicalSize::new(1920, 1080))
+        .with_inner_size(PhysicalSize::new(1920u32, 1080u32))
         .build(&event_loop)
         .unwrap();
-    // window.set_fullscreen(Some(Fullscreen::Borderless(None)));
-    // let monitor = window.available_monitors().next().unwrap();
-    // window.set_fullscreen(Some(Fullscreen::Borderless(Some(monitor))));
-    // let video_mode = monitor.video_modes().next().unwrap();
-    // window.set_fullscreen(Some(Fullscreen::Exclusive(video_mode)));
+
+    if args.fullscreen {
+        window.set_fullscreen(Some(Fullscreen::Borderless(None)));
+        // let monitor = window.available_monitors().next().unwrap();
+        // window.set_fullscreen(Some(Fullscreen::Borderless(Some(monitor))));
+        // let video_mode = monitor.video_modes().next().unwrap();
+        // window.set_fullscreen(Some(Fullscreen::Exclusive(video_mode)));
+    }
     window.set_cursor_visible(false);
 
     // State::new uses async code, so we're going to wait for it to finish
@@ -314,7 +335,9 @@ fn main() {
 
     let event_loop_proxy = event_loop.create_proxy();
     let _handler = thread::spawn(move || {
-        let listner = TcpListener::bind("127.0.0.1:7878").unwrap();
+        let host = &args.host;
+        let port = &args.port;
+        let listner = TcpListener::bind(format!("{host}:{port}")).unwrap();
         let mut buffer = [0; 1024];
         loop {
             for stream in listner.incoming() {

@@ -12,3 +12,5 @@ buf = bytes(msg, 'utf-8')
 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
     s.connect((HOST, PORT))
     s.sendall(buf)
+    ret = s.recv(1024)
+    print(ret)
