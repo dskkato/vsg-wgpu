@@ -1,15 +1,19 @@
 use std::io::Write;
+use std::net::TcpStream;
 use std::thread;
 use std::time::Instant;
 use std::{io::Read, net::TcpListener};
 
+use env_logger::TimestampPrecision;
 use winit::dpi::PhysicalSize;
+use winit::event_loop::EventLoopProxy;
 use winit::{
     event::*,
     event_loop::{ControlFlow, EventLoop},
     window::{Fullscreen, Window, WindowBuilder},
 };
 
+use anyhow::Result;
 use clap::Parser;
 
 mod graphics;
@@ -306,10 +310,43 @@ impl State {
     }
 }
 
+fn handle_connection(
+    mut stream: TcpStream,
+    event_loop_proxy: &EventLoopProxy<Command>,
+) -> Result<()> {
+    let mut buffer = [0; 1024];
+
+    log::debug!("Connection established! : {}", stream.peer_addr()?);
+    loop {
+        let n = stream.read(&mut buffer)?;
+        if n == 0 {
+            log::debug!("Connection closed!");
+            break;
+        }
+        let msg: messages::Message = serde_json::from_slice(&buffer[0..n])?;
+
+        log::debug!("Contents : {:?}", msg);
+        match msg {
+            messages::Message::SetShape(shape) => {
+                event_loop_proxy.send_event(Command::Draw(shape))?;
+            }
+            messages::Message::SetBgColor(color) => {
+                event_loop_proxy.send_event(Command::Clear(color))?;
+            }
+        }
+        stream.write(b"{\"type\": \"success\"}\n")?;
+        stream.flush()?;
+    }
+
+    Ok(())
+}
+
 fn main() {
-    env_logger::init();
+    env_logger::builder()
+        .format_timestamp(Some(TimestampPrecision::Millis))
+        .init();
     let args = Args::parse();
-    dbg!(&args);
+    log::debug!("{:?}", &args);
 
     let event_loop = EventLoop::<Command>::with_user_event();
     let window = WindowBuilder::new()
@@ -338,59 +375,15 @@ fn main() {
         let host = &args.host;
         let port = &args.port;
         let listner = TcpListener::bind(format!("{host}:{port}")).unwrap();
-        let mut buffer = [0; 1024];
         loop {
             for stream in listner.incoming() {
-                let mut stream = stream.unwrap();
-                println!("Connection established! : {}", stream.peer_addr().unwrap());
-                loop {
-                    let msg: serde_json::Result<messages::Message> = match stream.read(&mut buffer)
-                    {
-                        Ok(n) => {
-                            if n == 0 {
-                                println!("Connection closed!");
-                                stream.write(b"{\"type\": \"close\"}").unwrap();
-                                stream.flush().unwrap();
-                                break;
-                            }
-                            serde_json::from_slice(&buffer[0..n])
-                        }
-                        _ => {
-                            stream.write(b"{\"type\": \"err\"}").unwrap();
-                            stream.flush().unwrap();
-                            continue;
-                        }
-                    };
-
-                    // handle_connection
-                    if msg.is_err() {
-                        println!("Error: {}", msg.err().unwrap());
-                        stream.write(b"{\"type\": \"err\"}").unwrap();
-                        stream.flush().unwrap();
-                        continue;
-                    }
-
-                    println!("Contents : {:?}", msg);
-                    match msg.unwrap() {
-                        messages::Message::SetShape(shape) => {
-                            event_loop_proxy
-                                .send_event(Command::Draw(shape))
-                                .expect("Failed to send event");
-                        }
-                        messages::Message::SetBgColor(color) => {
-                            event_loop_proxy
-                                .send_event(Command::Clear(color))
-                                .expect("Failed to send event");
-                        }
-                    }
-                    stream.write(b"{\"type\": \"success\"}").unwrap();
-                    stream.flush().unwrap();
-                }
+                let stream = stream.unwrap();
+                handle_connection(stream, &event_loop_proxy).unwrap();
             }
         }
     });
     event_loop.run(move |event, _, control_flow| {
-        *control_flow = ControlFlow::Wait;
+        // *control_flow = ControlFlow::Wait;
         // info!("{:?}", event);
         match event {
             Event::WindowEvent {
@@ -423,6 +416,7 @@ fn main() {
                 // This is for continuous rendering.
             }
             Event::MainEventsCleared => {
+                log::trace!("MainEventsCleared");
                 match state.render() {
                     Ok(_) => {}
                     // Reconfigure the surface if lost
@@ -430,15 +424,16 @@ fn main() {
                     // The system is out of memory, we should probably quit
                     Err(wgpu::SurfaceError::OutOfMemory) => *control_flow = ControlFlow::Exit,
                     // All other errors (Outdated, Timeout) should be resolved by the next frame
-                    Err(e) => eprintln!("{:?}", e),
+                    Err(e) => log::error!("{:?}", e),
                 }
-                if last_frame_inst.elapsed().as_millis() > 17 {
-                    // println!("Frame was skipped {:?}", last_frame_inst.elapsed());
+                log::trace!("Render finished");
+                if last_frame_inst.elapsed().as_millis() > 20 {
+                    log::info!("Frame was skipped {:?}", last_frame_inst.elapsed());
                 }
                 last_frame_inst = Instant::now();
             }
             Event::UserEvent(event) => {
-                println!("UserEvent : {:?}", event);
+                log::debug!("UserEvent : {:?}", event);
                 match event {
                     Command::Draw(shape) => {
                         state.update_shape(shape);

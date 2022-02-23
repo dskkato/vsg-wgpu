@@ -48,3 +48,15 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
     s.sendall(buf)
     ret = s.recv(1024)
     print(ret)
+
+# %%
+
+with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+    s.connect((HOST, PORT))
+    msg = dict(SetBgColor=[0.5, 0.5, 0.5, 1.0])
+    msg = json.dumps(msg)
+    buf = bytes(msg, "utf-8")
+    for i in range(100):
+        s.sendall(buf)
+        ret = s.recv(1024)
+        print(ret)
