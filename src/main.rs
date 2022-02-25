@@ -198,14 +198,14 @@ impl State {
         }
     }
 
-    pub fn update_shape(&mut self, shape: Shape) {
+    pub fn update_shape(&mut self, shape: &Shape) {
         self.bundle = match shape {
             Shape::Circle { radius, ctr } => Box::new(Circle::new(
                 &self.device,
                 &self.config.format,
                 ctr.x,
                 ctr.y,
-                radius,
+                *radius,
                 &[0.2, 0.0, 0.0, 1.0],
             )),
             Shape::Square { size, ctr } => Box::new(Rectangle::new(
@@ -213,8 +213,8 @@ impl State {
                 &self.config.format,
                 ctr.x,
                 ctr.y,
-                size,
-                size,
+                *size,
+                *size,
                 &[0.0, 0.2, 0.0, 1.0],
             )),
             Shape::Cross {
@@ -226,9 +226,9 @@ impl State {
                 &self.config.format,
                 ctr.x,
                 ctr.y,
-                size,
-                size,
-                line_width,
+                *size,
+                *size,
+                *line_width,
                 &[0.0, 0.0, 0.2, 1.0],
             )),
         };
@@ -313,7 +313,7 @@ impl State {
 
 fn handle_connection(
     mut stream: TcpStream,
-    event_loop_proxy: &EventLoopProxy<Command>,
+    message_bucket: Arc<Mutex<Vec<Command>>>,
 ) -> Result<()> {
     let mut msg_size = [0; 4];
     let mut buffer = [0; 1024];
@@ -330,10 +330,12 @@ fn handle_connection(
         log::debug!("Contents : {:?}", msg);
         match msg {
             messages::Message::SetShape(shape) => {
-                event_loop_proxy.send_event(Command::Draw(shape))?;
+                let mut t = message_bucket.lock().unwrap();
+                t.push(Command::Draw(shape));
             }
             messages::Message::SetBgColor(color) => {
-                event_loop_proxy.send_event(Command::Clear(color))?;
+                let mut t = message_bucket.lock().unwrap();
+                t.push(Command::Clear(color));
             }
         }
         let msg = b"{\"type\": \"success\"}";
@@ -352,7 +354,7 @@ fn main() {
     let args = Args::parse();
     log::debug!("{:?}", &args);
 
-    let event_loop = EventLoop::<Command>::with_user_event();
+    let event_loop = EventLoop::new();
     let window = WindowBuilder::new()
         .with_visible(false)
         .with_inner_size(PhysicalSize::new(1920u32, 1080u32))
@@ -374,8 +376,8 @@ fn main() {
 
     let mut last_frame_inst = Instant::now();
 
-    let event_loop_proxy = event_loop.create_proxy();
-    // let message_bucket = Arc::new(Mutex::new(Vec::<Command>::new()));
+    let message_bucket = Arc::new(Mutex::new(Vec::<Command>::new()));
+    let send_message = Arc::clone(&message_bucket);
     let _handler = thread::spawn(move || {
         let host = &args.host;
         let port = &args.port;
@@ -383,7 +385,7 @@ fn main() {
         loop {
             for stream in listner.incoming() {
                 let stream = stream.unwrap();
-                match handle_connection(stream, &event_loop_proxy) {
+                match handle_connection(stream, Arc::clone(&send_message)) {
                     Ok(_) => (),
                     Err(e) => log::error!("{}", e),
                 }
@@ -425,6 +427,16 @@ fn main() {
             }
             Event::MainEventsCleared => {
                 log::trace!("MainEventsCleared");
+                {
+                    let mut t = message_bucket.lock().unwrap();
+                    // 暫定：最後のコマンドだけを実行する
+                    match t.last() {
+                        Some(Command::Draw(shape)) => state.update_shape(&shape),
+                        Some(Command::Clear(color)) => state.update_bg_color(&color),
+                        _ => {}
+                    }
+                    t.clear();
+                }
                 match state.render() {
                     Ok(_) => {}
                     // Reconfigure the surface if lost
@@ -439,17 +451,6 @@ fn main() {
                     log::info!("Frame was skipped {:?}", last_frame_inst.elapsed());
                 }
                 last_frame_inst = Instant::now();
-            }
-            Event::UserEvent(event) => {
-                log::debug!("UserEvent : {:?}", event);
-                match event {
-                    Command::Draw(shape) => {
-                        state.update_shape(shape);
-                    }
-                    Command::Clear(color) => {
-                        state.update_bg_color(&color);
-                    }
-                }
             }
             _ => {}
         }
