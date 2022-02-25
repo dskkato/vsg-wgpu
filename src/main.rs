@@ -1,5 +1,6 @@
 use std::io::Write;
 use std::net::TcpStream;
+use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Instant;
 use std::{io::Read, net::TcpListener};
@@ -314,16 +315,17 @@ fn handle_connection(
     mut stream: TcpStream,
     event_loop_proxy: &EventLoopProxy<Command>,
 ) -> Result<()> {
+    let mut msg_size = [0; 4];
     let mut buffer = [0; 1024];
 
     log::debug!("Connection established! : {}", stream.peer_addr()?);
     loop {
-        let n = stream.read(&mut buffer)?;
-        if n == 0 {
-            log::debug!("Connection closed!");
-            break;
-        }
-        let msg: messages::Message = serde_json::from_slice(&buffer[0..n])?;
+        stream.read_exact(&mut msg_size)?;
+        let len = u32::from_be_bytes(msg_size) as usize;
+        log::trace!("{}", len);
+        stream.read_exact(&mut buffer[..len])?;
+        log::trace!("{}", std::str::from_utf8(&buffer[..len])?);
+        let msg: messages::Message = serde_json::from_slice(&buffer[..len])?;
 
         log::debug!("Contents : {:?}", msg);
         match msg {
@@ -334,11 +336,13 @@ fn handle_connection(
                 event_loop_proxy.send_event(Command::Clear(color))?;
             }
         }
-        stream.write(b"{\"type\": \"success\"}\n")?;
+        let msg = b"{\"type\": \"success\"}";
+        let len = msg.len() as u32;
+        log::trace!("{}", len);
+        stream.write(&len.to_be_bytes())?;
+        stream.write(msg)?;
         stream.flush()?;
     }
-
-    Ok(())
 }
 
 fn main() {
@@ -371,6 +375,7 @@ fn main() {
     let mut last_frame_inst = Instant::now();
 
     let event_loop_proxy = event_loop.create_proxy();
+    // let message_bucket = Arc::new(Mutex::new(Vec::<Command>::new()));
     let _handler = thread::spawn(move || {
         let host = &args.host;
         let port = &args.port;
@@ -378,7 +383,10 @@ fn main() {
         loop {
             for stream in listner.incoming() {
                 let stream = stream.unwrap();
-                handle_connection(stream, &event_loop_proxy).unwrap();
+                match handle_connection(stream, &event_loop_proxy) {
+                    Ok(_) => (),
+                    Err(e) => log::error!("{}", e),
+                }
             }
         }
     });
