@@ -8,6 +8,8 @@ mod rectangle;
 pub use rectangle::Rectangle;
 pub mod triangle;
 
+pub mod scene;
+
 pub trait StimulusRenderer {
     // Render using internal data and user provided renderpass
     fn render<'rpass, 'pass>(&'rpass self, render_pass: &mut wgpu::RenderPass<'pass>)

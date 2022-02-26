@@ -7,7 +7,6 @@ use std::{io::Read, net::TcpListener};
 
 use env_logger::TimestampPrecision;
 use winit::dpi::PhysicalSize;
-use winit::event_loop::EventLoopProxy;
 use winit::{
     event::*,
     event_loop::{ControlFlow, EventLoop},
@@ -21,6 +20,7 @@ mod graphics;
 mod renderers;
 mod texture;
 mod vertex;
+use renderers::scene::Scene;
 use renderers::*;
 
 mod messages;
@@ -47,11 +47,7 @@ struct State {
     config: wgpu::SurfaceConfiguration,
     picture: Picture,
     size: winit::dpi::PhysicalSize<u32>,
-    bundle: Box<dyn renderers::StimulusRenderer>,
-    rebuild_bundle: bool,
-    x_ctr: f32,
-    y_ctr: f32,
-    shape: Shape,
+    scene: Scene,
     bg_color: wgpu::Color,
 }
 
@@ -93,24 +89,10 @@ impl State {
         };
         surface.configure(&device, &config);
 
-        let x_ctr = 0.7f32;
-        let y_ctr = 0.7f32;
-        let bundle = Box::new(Circle::new(
-            &device,
-            &config.format,
-            x_ctr,
-            y_ctr,
-            0.2,
-            &[0.2, 0.0, 0.0, 1.0],
-        ));
-        let rebuild_bundle = false;
-        let shape = Shape::Circle {
-            radius: 0.2f32,
-            ctr: Coordinates { x: x_ctr, y: y_ctr },
-        };
-
         let picture = Picture::new(&device, &queue, &config.format);
         let bg_color = wgpu::Color::BLACK;
+
+        let scene = renderers::scene::Scene::new();
 
         Self {
             surface,
@@ -119,11 +101,7 @@ impl State {
             config,
             picture,
             size,
-            bundle,
-            rebuild_bundle,
-            x_ctr,
-            y_ctr,
-            shape,
+            scene,
             bg_color,
         }
     }
@@ -137,69 +115,8 @@ impl State {
         }
     }
 
-    fn update(&mut self, event: &WindowEvent) {
-        match event {
-            WindowEvent::KeyboardInput { input, .. } => {
-                if let ElementState::Pressed = input.state {
-                    match input.virtual_keycode {
-                        Some(VirtualKeyCode::Left) => {
-                            self.x_ctr -= 0.05;
-                            self.rebuild_bundle = true;
-                        }
-                        Some(VirtualKeyCode::Right) => {
-                            self.x_ctr += 0.05;
-                            self.rebuild_bundle = true;
-                        }
-                        Some(VirtualKeyCode::Up) => {
-                            self.y_ctr += 0.05;
-                            self.rebuild_bundle = true;
-                        }
-                        Some(VirtualKeyCode::Down) => {
-                            self.y_ctr -= 0.05;
-                            self.rebuild_bundle = true;
-                        }
-                        _ => match self.shape {
-                            Shape::Circle { .. } => {
-                                self.shape = Shape::Square {
-                                    size: 0.3f32,
-                                    ctr: Coordinates {
-                                        x: self.x_ctr,
-                                        y: self.y_ctr,
-                                    },
-                                };
-                                self.rebuild_bundle = true;
-                            }
-                            Shape::Square { .. } => {
-                                self.shape = Shape::Cross {
-                                    size: 0.3f32,
-                                    line_width: 0.132,
-                                    ctr: Coordinates {
-                                        x: self.x_ctr,
-                                        y: self.y_ctr,
-                                    },
-                                };
-                                self.rebuild_bundle = true;
-                            }
-                            Shape::Cross { .. } => {
-                                self.shape = Shape::Circle {
-                                    radius: 0.2f32,
-                                    ctr: Coordinates {
-                                        x: self.x_ctr,
-                                        y: self.y_ctr,
-                                    },
-                                };
-                                self.rebuild_bundle = true;
-                            }
-                        },
-                    }
-                }
-            }
-            _ => {}
-        }
-    }
-
     pub fn update_shape(&mut self, shape: &Shape) {
-        self.bundle = match shape {
+        let bundle: Box<dyn StimulusRenderer> = match shape {
             Shape::Circle { radius, ctr } => Box::new(Circle::new(
                 &self.device,
                 &self.config.format,
@@ -232,6 +149,9 @@ impl State {
                 &[0.0, 0.0, 0.2, 1.0],
             )),
         };
+        let mut scene = Scene::new();
+        scene.add_stimulus(bundle);
+        self.scene = scene;
     }
 
     pub fn update_bg_color(&mut self, bg_color: &[f64; 4]) {
@@ -244,38 +164,6 @@ impl State {
     }
 
     fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
-        if self.rebuild_bundle {
-            self.bundle = match self.shape {
-                Shape::Circle { .. } => Box::new(Circle::new(
-                    &self.device,
-                    &self.config.format,
-                    self.x_ctr,
-                    self.y_ctr,
-                    0.2,
-                    &[0.2, 0.0, 0.0, 1.0],
-                )),
-                Shape::Square { .. } => Box::new(Rectangle::new(
-                    &self.device,
-                    &self.config.format,
-                    self.x_ctr,
-                    self.y_ctr,
-                    0.9,
-                    0.7,
-                    &[0.0, 0.2, 0.0, 1.0],
-                )),
-                Shape::Cross { .. } => Box::new(Cross::new(
-                    &self.device,
-                    &self.config.format,
-                    self.x_ctr,
-                    self.y_ctr,
-                    0.9,
-                    0.6,
-                    0.1,
-                    &[0.0, 0.0, 0.2, 1.0],
-                )),
-            };
-            self.rebuild_bundle = false;
-        }
         let output = self.surface.get_current_texture()?;
         let view = output
             .texture
@@ -301,7 +189,7 @@ impl State {
                 depth_stencil_attachment: None,
             });
             self.picture.render(&mut render_pass);
-            self.bundle.render(&mut render_pass);
+            self.scene.render(&mut render_pass);
         }
 
         self.queue.submit(std::iter::once(encoder.finish()));
@@ -418,7 +306,7 @@ fn main() {
                         // new_inner_size is &mut so w have to dereference it twice
                         state.resize(**new_inner_size);
                     }
-                    _ => state.update(event),
+                    _ => {} //state.update(event),
                 }
             }
             Event::RedrawRequested(window_id) if window_id == window.id() => {
