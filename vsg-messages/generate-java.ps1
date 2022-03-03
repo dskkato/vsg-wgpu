@@ -1,0 +1,1 @@
+protoc --java_out=vsg-messages-java/src/main/java -I=proto proto/message.proto

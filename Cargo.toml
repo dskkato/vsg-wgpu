@@ -2,5 +2,5 @@
 resolver = "2"
 members = [
     "vsg-core",
-    "vsg-messages",
+    "vsg-messages/rust",
 ]

@@ -1,9 +1,10 @@
 use serde::{Deserialize, Serialize};
+pub use vsg_messages;
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Clone)]
 pub enum Command {
-    Draw(Shape),
-    Clear([f64; 4]),
+    Draw(vsg_messages::shape::Shape),
+    Clear([f32; 4]),
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

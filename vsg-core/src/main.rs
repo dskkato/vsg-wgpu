@@ -24,8 +24,9 @@ use renderers::scene::Scene;
 use renderers::*;
 
 mod messages;
-use messages::Shape;
 use messages::{Command, Coordinates};
+
+use prost::Message;
 
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
@@ -115,51 +116,61 @@ impl State {
         }
     }
 
-    pub fn update_shape(&mut self, shape: &Shape) {
+    pub fn update_shape(&mut self, shape: &vsg_messages::shape::Shape) {
+        use vsg_messages::shape::Shape;
         let bundle: Box<dyn StimulusRenderer> = match shape {
-            Shape::Circle { radius, ctr } => Box::new(Circle::new(
-                &self.device,
-                &self.config.format,
-                ctr.x,
-                ctr.y,
-                *radius,
-                &[0.2, 0.0, 0.0, 1.0],
-            )),
-            Shape::Square { size, ctr } => Box::new(Rectangle::new(
-                &self.device,
-                &self.config.format,
-                ctr.x,
-                ctr.y,
-                *size,
-                *size,
-                &[0.0, 0.2, 0.0, 1.0],
-            )),
-            Shape::Cross {
+            Shape::Circle(vsg_messages::Circle { radius, ctr }) => {
+                let ctr = ctr.as_ref().unwrap();
+                Box::new(Circle::new(
+                    &self.device,
+                    &self.config.format,
+                    ctr.x,
+                    ctr.y,
+                    *radius,
+                    &[0.2, 0.0, 0.0, 1.0],
+                ))
+            }
+            Shape::Square(vsg_messages::Square { size, ctr }) => {
+                let ctr = ctr.as_ref().unwrap();
+                Box::new(Rectangle::new(
+                    &self.device,
+                    &self.config.format,
+                    ctr.x,
+                    ctr.y,
+                    *size,
+                    *size,
+                    &[0.0, 0.2, 0.0, 1.0],
+                ))
+            }
+            Shape::Cross(vsg_messages::Cross {
                 size,
                 line_width,
                 ctr,
-            } => Box::new(Cross::new(
-                &self.device,
-                &self.config.format,
-                ctr.x,
-                ctr.y,
-                *size,
-                *size,
-                *line_width,
-                &[0.0, 0.0, 0.2, 1.0],
-            )),
+            }) => {
+                let ctr = ctr.as_ref().unwrap();
+                Box::new(Cross::new(
+                    &self.device,
+                    &self.config.format,
+                    ctr.x,
+                    ctr.y,
+                    *size,
+                    *size,
+                    *line_width,
+                    &[0.0, 0.0, 0.2, 1.0],
+                ))
+            }
         };
         let mut scene = Scene::new();
         scene.add_stimulus(bundle);
         self.scene = scene;
     }
 
-    pub fn update_bg_color(&mut self, bg_color: &[f64; 4]) {
+    pub fn update_bg_color(&mut self, bg_color: &[f32; 4]) {
         self.bg_color = wgpu::Color {
-            r: bg_color[0],
-            g: bg_color[1],
-            b: bg_color[2],
-            a: bg_color[3],
+            r: bg_color[0] as f64,
+            g: bg_color[1] as f64,
+            b: bg_color[2] as f64,
+            a: bg_color[3] as f64,
         };
     }
 
@@ -212,18 +223,27 @@ fn handle_connection(
         let len = u32::from_be_bytes(msg_size) as usize;
         log::trace!("{}", len);
         stream.read_exact(&mut buffer[..len])?;
-        log::trace!("{}", std::str::from_utf8(&buffer[..len])?);
-        let msg: messages::Message = serde_json::from_slice(&buffer[..len])?;
+        let msg = vsg_messages::SetMessage::decode(&buffer[..len])?;
 
         log::debug!("Contents : {:?}", msg);
-        match msg {
-            messages::Message::SetShape(shape) => {
+        match msg.command {
+            Some(vsg_messages::set_message::Command::SetShape(shape)) => {
                 let mut t = message_bucket.lock().unwrap();
-                t.push(Command::Draw(shape));
+                t.push(Command::Draw(shape.shape.unwrap()));
             }
-            messages::Message::SetBgColor(color) => {
+            Some(vsg_messages::set_message::Command::SetBgColor(color)) => {
                 let mut t = message_bucket.lock().unwrap();
+                let color = [
+                    color.color[0],
+                    color.color[1],
+                    color.color[2],
+                    color.color[3],
+                ];
                 t.push(Command::Clear(color));
+            }
+            None => {
+                log::error!("Unknown command");
+                break;
             }
         }
         let msg = b"{\"type\": \"success\"}";
@@ -233,6 +253,7 @@ fn handle_connection(
         stream.write(msg)?;
         stream.flush()?;
     }
+    Ok(())
 }
 
 fn main() {
