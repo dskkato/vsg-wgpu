@@ -29,14 +29,15 @@ pub struct Picture {
     index_buffer: wgpu::Buffer,
     num_indices: u32,
     diffuse_bind_group: wgpu::BindGroup,
-    #[allow(dead_code)]
-    diffuse_bind_group1: wgpu::BindGroup,
-    #[allow(dead_code)]
-    diffuse_bind_group2: wgpu::BindGroup,
 }
 
 impl Picture {
-    pub fn new(device: &wgpu::Device, queue: &wgpu::Queue, format: &wgpu::TextureFormat) -> Self {
+    pub fn new(
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        format: &wgpu::TextureFormat,
+        buf: &[u8],
+    ) -> Self {
         let texture_bind_group_layout =
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                 entries: &[
@@ -60,60 +61,10 @@ impl Picture {
                 label: Some("texture_bind_group_layout"),
             });
 
-        let diffuse_bytes = include_bytes!("sn2_cd1_rnl_gray.tif");
-        let diffuse_texture = crate::texture::Texture::from_bytes(
-            &device,
-            &queue,
-            diffuse_bytes,
-            "sn2_cd1_rnl_gray.tif",
-        )
-        .unwrap();
+        let diffuse_texture =
+            crate::texture::Texture::from_bytes(&device, &queue, buf, "xx").unwrap();
 
         let diffuse_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            layout: &texture_bind_group_layout,
-            entries: &[
-                wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: wgpu::BindingResource::TextureView(&diffuse_texture.view),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 1,
-                    resource: wgpu::BindingResource::Sampler(&diffuse_texture.sampler),
-                },
-            ],
-            label: Some("diffuse_bind_group"),
-        });
-
-        let diffuse_bytes = include_bytes!("sn10_cd1_rnl_gray.tif");
-        let diffuse_texture =
-            texture::Texture::from_bytes(&device, &queue, diffuse_bytes, "sn10_cd1_rnl_gray.tif")
-                .unwrap();
-
-        let diffuse_bind_group1 = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            layout: &texture_bind_group_layout,
-            entries: &[
-                wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: wgpu::BindingResource::TextureView(&diffuse_texture.view),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 1,
-                    resource: wgpu::BindingResource::Sampler(&diffuse_texture.sampler),
-                },
-            ],
-            label: Some("diffuse_bind_group"),
-        });
-
-        let diffuse_bytes = include_bytes!("sn15_cd3_campus_gray.tif");
-        let diffuse_texture = texture::Texture::from_bytes(
-            &device,
-            &queue,
-            diffuse_bytes,
-            "sn15_cd3_campus_gray.tif",
-        )
-        .unwrap();
-
-        let diffuse_bind_group2 = device.create_bind_group(&wgpu::BindGroupDescriptor {
             layout: &texture_bind_group_layout,
             entries: &[
                 wgpu::BindGroupEntry {
@@ -203,8 +154,6 @@ impl Picture {
             index_buffer,
             num_indices,
             diffuse_bind_group,
-            diffuse_bind_group1,
-            diffuse_bind_group2,
         }
     }
 }
@@ -216,18 +165,6 @@ impl StimulusRenderer for Picture {
     {
         render_pass.set_pipeline(&self.pipeline_with_texture);
         render_pass.set_bind_group(0, &self.diffuse_bind_group, &[]);
-        // {
-        //     match self.i / 60 {
-        //         0 => render_pass.set_bind_group(0, &self.diffuse_bind_group, &[]),
-        //         1 => render_pass.set_bind_group(0, &self.diffuse_bind_group1, &[]),
-        //         2 => render_pass.set_bind_group(0, &self.diffuse_bind_group2, &[]),
-        //         _ => {
-        //             render_pass.set_bind_group(0, &self.diffuse_bind_group, &[]);
-        //             self.i = 1;
-        //         }
-        //     }
-        //     self.i += 1;
-        // }
         render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
         render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
         render_pass.draw_indexed(0..self.num_indices, 0, 0..1);

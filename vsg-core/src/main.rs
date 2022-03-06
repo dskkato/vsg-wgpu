@@ -46,7 +46,7 @@ struct State {
     device: wgpu::Device,
     queue: wgpu::Queue,
     config: wgpu::SurfaceConfiguration,
-    picture: Picture,
+    picture: Option<Picture>,
     size: winit::dpi::PhysicalSize<u32>,
     scene: Scene,
     bg_color: wgpu::Color,
@@ -90,7 +90,6 @@ impl State {
         };
         surface.configure(&device, &config);
 
-        let picture = Picture::new(&device, &queue, &config.format);
         let bg_color = wgpu::Color::BLACK;
 
         let scene = renderers::scene::Scene::new();
@@ -100,7 +99,7 @@ impl State {
             device,
             queue,
             config,
-            picture,
+            picture: None,
             size,
             scene,
             bg_color,
@@ -174,6 +173,15 @@ impl State {
         };
     }
 
+    pub fn update_texture(&mut self, _idx: u32, texture: &[u8]) {
+        self.picture = Some(Picture::new(
+            &self.device,
+            &self.queue,
+            &self.config.format,
+            texture,
+        ));
+    }
+
     fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
         let output = self.surface.get_current_texture()?;
         let view = output
@@ -199,7 +207,9 @@ impl State {
                 }],
                 depth_stencil_attachment: None,
             });
-            self.picture.render(&mut render_pass);
+            if let Some(image) = &self.picture {
+                image.render(&mut render_pass);
+            }
             self.scene.render(&mut render_pass);
         }
 
@@ -215,23 +225,26 @@ fn handle_connection(
     message_bucket: Arc<Mutex<Vec<Command>>>,
 ) -> Result<()> {
     let mut msg_size = [0; 4];
-    let mut buffer = [0; 1024];
+    let mut buffer = vec![0; 1024];
 
     log::debug!("Connection established! : {}", stream.peer_addr()?);
     loop {
         stream.read_exact(&mut msg_size)?;
         let len = u32::from_be_bytes(msg_size) as usize;
         log::trace!("{}", len);
+        if len > buffer.len() {
+            buffer.resize(len, 0);
+        }
         stream.read_exact(&mut buffer[..len])?;
-        let msg = vsg_messages::SetMessage::decode(&buffer[..len])?;
+        let msg = vsg_messages::RootMessage::decode(&buffer[..len])?;
 
         log::debug!("Contents : {:?}", msg);
         match msg.command {
-            Some(vsg_messages::set_message::Command::SetShape(shape)) => {
+            Some(vsg_messages::root_message::Command::SetShape(shape)) => {
                 let mut t = message_bucket.lock().unwrap();
                 t.push(Command::Draw(shape.shape.unwrap()));
             }
-            Some(vsg_messages::set_message::Command::SetBgColor(color)) => {
+            Some(vsg_messages::root_message::Command::SetBgColor(color)) => {
                 let mut t = message_bucket.lock().unwrap();
                 let color = [
                     color.color[0],
@@ -240,6 +253,12 @@ fn handle_connection(
                     color.color[3],
                 ];
                 t.push(Command::Clear(color));
+            }
+            Some(vsg_messages::root_message::Command::SetTexture(texture)) => {
+                let idx = texture.index;
+                let data = texture.data;
+                let mut t = message_bucket.lock().unwrap();
+                t.push(Command::Texture(idx, data));
             }
             None => {
                 log::error!("Unknown command");
@@ -266,18 +285,22 @@ fn main() {
     let event_loop = EventLoop::new();
     let window = WindowBuilder::new()
         .with_visible(false)
-        .with_inner_size(PhysicalSize::new(1920u32, 1080u32))
+        // .with_inner_size(PhysicalSize::new(1920u32, 1080u32))
         .build(&event_loop)
         .unwrap();
 
     if args.fullscreen {
-        window.set_fullscreen(Some(Fullscreen::Borderless(None)));
-        // let monitor = window.available_monitors().next().unwrap();
-        // window.set_fullscreen(Some(Fullscreen::Borderless(Some(monitor))));
-        // let video_mode = monitor.video_modes().next().unwrap();
-        // window.set_fullscreen(Some(Fullscreen::Exclusive(video_mode)));
+        // window.set_fullscreen(Some(Fullscreen::Borderless(None)));
+        let monitors: Vec<_> = window.available_monitors().collect();
+        log::debug!("{:?}", &monitors);
+        let monitor = &monitors[1];
+        let mut video_modes: Vec<_> = monitor.video_modes().collect();
+        log::debug!("{:?}", &video_modes);
+        let video_mode = video_modes.remove(0);
+        window.set_fullscreen(Some(Fullscreen::Exclusive(video_mode)));
     }
     window.set_cursor_visible(false);
+    window.set_cursor_grab(true).unwrap();
 
     // State::new uses async code, so we're going to wait for it to finish
     let mut state = pollster::block_on(State::new(&window));
@@ -342,6 +365,7 @@ fn main() {
                     match t.last() {
                         Some(Command::Draw(shape)) => state.update_shape(&shape),
                         Some(Command::Clear(color)) => state.update_bg_color(&color),
+                        Some(Command::Texture(idx, texture)) => state.update_texture(*idx, texture),
                         _ => {}
                     }
                     t.clear();

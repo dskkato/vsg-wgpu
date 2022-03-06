@@ -5,6 +5,7 @@ pub use vsg_messages;
 pub enum Command {
     Draw(vsg_messages::shape::Shape),
     Clear([f32; 4]),
+    Texture(u32, Vec<u8>),
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
