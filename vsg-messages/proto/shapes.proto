@@ -1,0 +1,38 @@
+syntax = "proto3";
+
+package vsg;
+
+option java_multiple_files = true;
+option java_package = "vsg.shapes";
+option java_outer_classname = "VsgShapes";
+
+message Shape {
+    oneof shape {
+        Square square = 1;
+        Circle circle = 2;
+        Cross cross = 3;
+    }
+}
+
+message Coordinates {
+    float x = 1;
+    float y = 2;
+}
+
+message Square {
+    float size = 1;
+    Coordinates ctr = 2;
+}
+
+message Circle {
+    float radius = 1;
+    Coordinates ctr = 2;
+}
+
+message Cross {
+    float size = 1;
+    float line_width = 2;
+    Coordinates ctr = 3;
+}
+
+
