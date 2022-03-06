@@ -3,8 +3,8 @@
 
 package vsg;
 
-public interface SetMessageOrBuilder extends
-    // @@protoc_insertion_point(interface_extends:vsg.SetMessage)
+public interface RootMessageOrBuilder extends
+    // @@protoc_insertion_point(interface_extends:vsg.RootMessage)
     com.google.protobuf.MessageOrBuilder {
 
   /**
@@ -16,11 +16,11 @@ public interface SetMessageOrBuilder extends
    * <code>.vsg.Shape set_shape = 1;</code>
    * @return The setShape.
    */
-  vsg.Shape getSetShape();
+  vsg.shapes.Shape getSetShape();
   /**
    * <code>.vsg.Shape set_shape = 1;</code>
    */
-  vsg.ShapeOrBuilder getSetShapeOrBuilder();
+  vsg.shapes.ShapeOrBuilder getSetShapeOrBuilder();
 
   /**
    * <code>.vsg.BgColor set_bg_color = 2;</code>
@@ -37,5 +37,20 @@ public interface SetMessageOrBuilder extends
    */
   vsg.BgColorOrBuilder getSetBgColorOrBuilder();
 
-  public vsg.SetMessage.CommandCase getCommandCase();
+  /**
+   * <code>.vsg.Texture set_texture = 3;</code>
+   * @return Whether the setTexture field is set.
+   */
+  boolean hasSetTexture();
+  /**
+   * <code>.vsg.Texture set_texture = 3;</code>
+   * @return The setTexture.
+   */
+  vsg.Texture getSetTexture();
+  /**
+   * <code>.vsg.Texture set_texture = 3;</code>
+   */
+  vsg.TextureOrBuilder getSetTextureOrBuilder();
+
+  public vsg.RootMessage.CommandCase getCommandCase();
 }

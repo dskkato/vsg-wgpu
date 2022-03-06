@@ -15,40 +15,20 @@ public final class Vsg {
         (com.google.protobuf.ExtensionRegistryLite) registry);
   }
   static final com.google.protobuf.Descriptors.Descriptor
-    internal_static_vsg_SetMessage_descriptor;
+    internal_static_vsg_RootMessage_descriptor;
   static final 
     com.google.protobuf.GeneratedMessageV3.FieldAccessorTable
-      internal_static_vsg_SetMessage_fieldAccessorTable;
-  static final com.google.protobuf.Descriptors.Descriptor
-    internal_static_vsg_Shape_descriptor;
-  static final 
-    com.google.protobuf.GeneratedMessageV3.FieldAccessorTable
-      internal_static_vsg_Shape_fieldAccessorTable;
+      internal_static_vsg_RootMessage_fieldAccessorTable;
   static final com.google.protobuf.Descriptors.Descriptor
     internal_static_vsg_BgColor_descriptor;
   static final 
     com.google.protobuf.GeneratedMessageV3.FieldAccessorTable
       internal_static_vsg_BgColor_fieldAccessorTable;
   static final com.google.protobuf.Descriptors.Descriptor
-    internal_static_vsg_Coordinates_descriptor;
+    internal_static_vsg_Texture_descriptor;
   static final 
     com.google.protobuf.GeneratedMessageV3.FieldAccessorTable
-      internal_static_vsg_Coordinates_fieldAccessorTable;
-  static final com.google.protobuf.Descriptors.Descriptor
-    internal_static_vsg_Square_descriptor;
-  static final 
-    com.google.protobuf.GeneratedMessageV3.FieldAccessorTable
-      internal_static_vsg_Square_fieldAccessorTable;
-  static final com.google.protobuf.Descriptors.Descriptor
-    internal_static_vsg_Circle_descriptor;
-  static final 
-    com.google.protobuf.GeneratedMessageV3.FieldAccessorTable
-      internal_static_vsg_Circle_fieldAccessorTable;
-  static final com.google.protobuf.Descriptors.Descriptor
-    internal_static_vsg_Cross_descriptor;
-  static final 
-    com.google.protobuf.GeneratedMessageV3.FieldAccessorTable
-      internal_static_vsg_Cross_fieldAccessorTable;
+      internal_static_vsg_Texture_fieldAccessorTable;
 
   public static com.google.protobuf.Descriptors.FileDescriptor
       getDescriptor() {
@@ -58,66 +38,38 @@ public final class Vsg {
       descriptor;
   static {
     java.lang.String[] descriptorData = {
-      "\n\rmessage.proto\022\003vsg\"^\n\nSetMessage\022\037\n\tse" +
-      "t_shape\030\001 \001(\0132\n.vsg.ShapeH\000\022$\n\014set_bg_co" +
-      "lor\030\002 \001(\0132\014.vsg.BgColorH\000B\t\n\007command\"k\n\005" +
-      "Shape\022\035\n\006square\030\001 \001(\0132\013.vsg.SquareH\000\022\035\n\006" +
-      "circle\030\002 \001(\0132\013.vsg.CircleH\000\022\033\n\005cross\030\003 \001" +
-      "(\0132\n.vsg.CrossH\000B\007\n\005shape\"\030\n\007BgColor\022\r\n\005" +
-      "color\030\001 \003(\002\"#\n\013Coordinates\022\t\n\001x\030\001 \001(\002\022\t\n" +
-      "\001y\030\002 \001(\002\"5\n\006Square\022\014\n\004size\030\001 \001(\002\022\035\n\003ctr\030" +
-      "\002 \001(\0132\020.vsg.Coordinates\"7\n\006Circle\022\016\n\006rad" +
-      "ius\030\001 \001(\002\022\035\n\003ctr\030\002 \001(\0132\020.vsg.Coordinates" +
-      "\"H\n\005Cross\022\014\n\004size\030\001 \001(\002\022\022\n\nline_width\030\002 " +
-      "\001(\002\022\035\n\003ctr\030\003 \001(\0132\020.vsg.CoordinatesB\014\n\003vs" +
-      "gB\003VsgP\001b\006proto3"
+      "\n\rmessage.proto\022\003vsg\032\014shapes.proto\"\204\001\n\013R" +
+      "ootMessage\022\037\n\tset_shape\030\001 \001(\0132\n.vsg.Shap" +
+      "eH\000\022$\n\014set_bg_color\030\002 \001(\0132\014.vsg.BgColorH" +
+      "\000\022#\n\013set_texture\030\003 \001(\0132\014.vsg.TextureH\000B\t" +
+      "\n\007command\"\030\n\007BgColor\022\r\n\005color\030\001 \003(\002\"&\n\007T" +
+      "exture\022\r\n\005index\030\001 \001(\r\022\014\n\004data\030\002 \001(\014B\014\n\003v" +
+      "sgB\003VsgP\001b\006proto3"
     };
     descriptor = com.google.protobuf.Descriptors.FileDescriptor
       .internalBuildGeneratedFileFrom(descriptorData,
         new com.google.protobuf.Descriptors.FileDescriptor[] {
+          vsg.shapes.VsgShapes.getDescriptor(),
         });
-    internal_static_vsg_SetMessage_descriptor =
+    internal_static_vsg_RootMessage_descriptor =
       getDescriptor().getMessageTypes().get(0);
-    internal_static_vsg_SetMessage_fieldAccessorTable = new
+    internal_static_vsg_RootMessage_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessageV3.FieldAccessorTable(
-        internal_static_vsg_SetMessage_descriptor,
-        new java.lang.String[] { "SetShape", "SetBgColor", "Command", });
-    internal_static_vsg_Shape_descriptor =
-      getDescriptor().getMessageTypes().get(1);
-    internal_static_vsg_Shape_fieldAccessorTable = new
-      com.google.protobuf.GeneratedMessageV3.FieldAccessorTable(
-        internal_static_vsg_Shape_descriptor,
-        new java.lang.String[] { "Square", "Circle", "Cross", "Shape", });
+        internal_static_vsg_RootMessage_descriptor,
+        new java.lang.String[] { "SetShape", "SetBgColor", "SetTexture", "Command", });
     internal_static_vsg_BgColor_descriptor =
-      getDescriptor().getMessageTypes().get(2);
+      getDescriptor().getMessageTypes().get(1);
     internal_static_vsg_BgColor_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessageV3.FieldAccessorTable(
         internal_static_vsg_BgColor_descriptor,
         new java.lang.String[] { "Color", });
-    internal_static_vsg_Coordinates_descriptor =
-      getDescriptor().getMessageTypes().get(3);
-    internal_static_vsg_Coordinates_fieldAccessorTable = new
+    internal_static_vsg_Texture_descriptor =
+      getDescriptor().getMessageTypes().get(2);
+    internal_static_vsg_Texture_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessageV3.FieldAccessorTable(
-        internal_static_vsg_Coordinates_descriptor,
-        new java.lang.String[] { "X", "Y", });
-    internal_static_vsg_Square_descriptor =
-      getDescriptor().getMessageTypes().get(4);
-    internal_static_vsg_Square_fieldAccessorTable = new
-      com.google.protobuf.GeneratedMessageV3.FieldAccessorTable(
-        internal_static_vsg_Square_descriptor,
-        new java.lang.String[] { "Size", "Ctr", });
-    internal_static_vsg_Circle_descriptor =
-      getDescriptor().getMessageTypes().get(5);
-    internal_static_vsg_Circle_fieldAccessorTable = new
-      com.google.protobuf.GeneratedMessageV3.FieldAccessorTable(
-        internal_static_vsg_Circle_descriptor,
-        new java.lang.String[] { "Radius", "Ctr", });
-    internal_static_vsg_Cross_descriptor =
-      getDescriptor().getMessageTypes().get(6);
-    internal_static_vsg_Cross_fieldAccessorTable = new
-      com.google.protobuf.GeneratedMessageV3.FieldAccessorTable(
-        internal_static_vsg_Cross_descriptor,
-        new java.lang.String[] { "Size", "LineWidth", "Ctr", });
+        internal_static_vsg_Texture_descriptor,
+        new java.lang.String[] { "Index", "Data", });
+    vsg.shapes.VsgShapes.getDescriptor();
   }
 
   // @@protoc_insertion_point(outer_class_scope)

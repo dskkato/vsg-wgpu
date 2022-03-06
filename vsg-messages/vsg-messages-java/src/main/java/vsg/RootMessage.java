@@ -4,25 +4,25 @@
 package vsg;
 
 /**
- * Protobuf type {@code vsg.SetMessage}
+ * Protobuf type {@code vsg.RootMessage}
  */
-public final class SetMessage extends
+public final class RootMessage extends
     com.google.protobuf.GeneratedMessageV3 implements
-    // @@protoc_insertion_point(message_implements:vsg.SetMessage)
-    SetMessageOrBuilder {
+    // @@protoc_insertion_point(message_implements:vsg.RootMessage)
+    RootMessageOrBuilder {
 private static final long serialVersionUID = 0L;
-  // Use SetMessage.newBuilder() to construct.
-  private SetMessage(com.google.protobuf.GeneratedMessageV3.Builder<?> builder) {
+  // Use RootMessage.newBuilder() to construct.
+  private RootMessage(com.google.protobuf.GeneratedMessageV3.Builder<?> builder) {
     super(builder);
   }
-  private SetMessage() {
+  private RootMessage() {
   }
 
   @java.lang.Override
   @SuppressWarnings({"unused"})
   protected java.lang.Object newInstance(
       UnusedPrivateParameter unused) {
-    return new SetMessage();
+    return new RootMessage();
   }
 
   @java.lang.Override
@@ -30,7 +30,7 @@ private static final long serialVersionUID = 0L;
   getUnknownFields() {
     return this.unknownFields;
   }
-  private SetMessage(
+  private RootMessage(
       com.google.protobuf.CodedInputStream input,
       com.google.protobuf.ExtensionRegistryLite extensionRegistry)
       throws com.google.protobuf.InvalidProtocolBufferException {
@@ -49,14 +49,14 @@ private static final long serialVersionUID = 0L;
             done = true;
             break;
           case 10: {
-            vsg.Shape.Builder subBuilder = null;
+            vsg.shapes.Shape.Builder subBuilder = null;
             if (commandCase_ == 1) {
-              subBuilder = ((vsg.Shape) command_).toBuilder();
+              subBuilder = ((vsg.shapes.Shape) command_).toBuilder();
             }
             command_ =
-                input.readMessage(vsg.Shape.parser(), extensionRegistry);
+                input.readMessage(vsg.shapes.Shape.parser(), extensionRegistry);
             if (subBuilder != null) {
-              subBuilder.mergeFrom((vsg.Shape) command_);
+              subBuilder.mergeFrom((vsg.shapes.Shape) command_);
               command_ = subBuilder.buildPartial();
             }
             commandCase_ = 1;
@@ -74,6 +74,20 @@ private static final long serialVersionUID = 0L;
               command_ = subBuilder.buildPartial();
             }
             commandCase_ = 2;
+            break;
+          }
+          case 26: {
+            vsg.Texture.Builder subBuilder = null;
+            if (commandCase_ == 3) {
+              subBuilder = ((vsg.Texture) command_).toBuilder();
+            }
+            command_ =
+                input.readMessage(vsg.Texture.parser(), extensionRegistry);
+            if (subBuilder != null) {
+              subBuilder.mergeFrom((vsg.Texture) command_);
+              command_ = subBuilder.buildPartial();
+            }
+            commandCase_ = 3;
             break;
           }
           default: {
@@ -97,15 +111,15 @@ private static final long serialVersionUID = 0L;
   }
   public static final com.google.protobuf.Descriptors.Descriptor
       getDescriptor() {
-    return vsg.Vsg.internal_static_vsg_SetMessage_descriptor;
+    return vsg.Vsg.internal_static_vsg_RootMessage_descriptor;
   }
 
   @java.lang.Override
   protected com.google.protobuf.GeneratedMessageV3.FieldAccessorTable
       internalGetFieldAccessorTable() {
-    return vsg.Vsg.internal_static_vsg_SetMessage_fieldAccessorTable
+    return vsg.Vsg.internal_static_vsg_RootMessage_fieldAccessorTable
         .ensureFieldAccessorsInitialized(
-            vsg.SetMessage.class, vsg.SetMessage.Builder.class);
+            vsg.RootMessage.class, vsg.RootMessage.Builder.class);
   }
 
   private int commandCase_ = 0;
@@ -115,6 +129,7 @@ private static final long serialVersionUID = 0L;
           com.google.protobuf.AbstractMessage.InternalOneOfEnum {
     SET_SHAPE(1),
     SET_BG_COLOR(2),
+    SET_TEXTURE(3),
     COMMAND_NOT_SET(0);
     private final int value;
     private CommandCase(int value) {
@@ -134,6 +149,7 @@ private static final long serialVersionUID = 0L;
       switch (value) {
         case 1: return SET_SHAPE;
         case 2: return SET_BG_COLOR;
+        case 3: return SET_TEXTURE;
         case 0: return COMMAND_NOT_SET;
         default: return null;
       }
@@ -163,21 +179,21 @@ private static final long serialVersionUID = 0L;
    * @return The setShape.
    */
   @java.lang.Override
-  public vsg.Shape getSetShape() {
+  public vsg.shapes.Shape getSetShape() {
     if (commandCase_ == 1) {
-       return (vsg.Shape) command_;
+       return (vsg.shapes.Shape) command_;
     }
-    return vsg.Shape.getDefaultInstance();
+    return vsg.shapes.Shape.getDefaultInstance();
   }
   /**
    * <code>.vsg.Shape set_shape = 1;</code>
    */
   @java.lang.Override
-  public vsg.ShapeOrBuilder getSetShapeOrBuilder() {
+  public vsg.shapes.ShapeOrBuilder getSetShapeOrBuilder() {
     if (commandCase_ == 1) {
-       return (vsg.Shape) command_;
+       return (vsg.shapes.Shape) command_;
     }
-    return vsg.Shape.getDefaultInstance();
+    return vsg.shapes.Shape.getDefaultInstance();
   }
 
   public static final int SET_BG_COLOR_FIELD_NUMBER = 2;
@@ -211,6 +227,37 @@ private static final long serialVersionUID = 0L;
     return vsg.BgColor.getDefaultInstance();
   }
 
+  public static final int SET_TEXTURE_FIELD_NUMBER = 3;
+  /**
+   * <code>.vsg.Texture set_texture = 3;</code>
+   * @return Whether the setTexture field is set.
+   */
+  @java.lang.Override
+  public boolean hasSetTexture() {
+    return commandCase_ == 3;
+  }
+  /**
+   * <code>.vsg.Texture set_texture = 3;</code>
+   * @return The setTexture.
+   */
+  @java.lang.Override
+  public vsg.Texture getSetTexture() {
+    if (commandCase_ == 3) {
+       return (vsg.Texture) command_;
+    }
+    return vsg.Texture.getDefaultInstance();
+  }
+  /**
+   * <code>.vsg.Texture set_texture = 3;</code>
+   */
+  @java.lang.Override
+  public vsg.TextureOrBuilder getSetTextureOrBuilder() {
+    if (commandCase_ == 3) {
+       return (vsg.Texture) command_;
+    }
+    return vsg.Texture.getDefaultInstance();
+  }
+
   private byte memoizedIsInitialized = -1;
   @java.lang.Override
   public final boolean isInitialized() {
@@ -226,10 +273,13 @@ private static final long serialVersionUID = 0L;
   public void writeTo(com.google.protobuf.CodedOutputStream output)
                       throws java.io.IOException {
     if (commandCase_ == 1) {
-      output.writeMessage(1, (vsg.Shape) command_);
+      output.writeMessage(1, (vsg.shapes.Shape) command_);
     }
     if (commandCase_ == 2) {
       output.writeMessage(2, (vsg.BgColor) command_);
+    }
+    if (commandCase_ == 3) {
+      output.writeMessage(3, (vsg.Texture) command_);
     }
     unknownFields.writeTo(output);
   }
@@ -242,11 +292,15 @@ private static final long serialVersionUID = 0L;
     size = 0;
     if (commandCase_ == 1) {
       size += com.google.protobuf.CodedOutputStream
-        .computeMessageSize(1, (vsg.Shape) command_);
+        .computeMessageSize(1, (vsg.shapes.Shape) command_);
     }
     if (commandCase_ == 2) {
       size += com.google.protobuf.CodedOutputStream
         .computeMessageSize(2, (vsg.BgColor) command_);
+    }
+    if (commandCase_ == 3) {
+      size += com.google.protobuf.CodedOutputStream
+        .computeMessageSize(3, (vsg.Texture) command_);
     }
     size += unknownFields.getSerializedSize();
     memoizedSize = size;
@@ -258,10 +312,10 @@ private static final long serialVersionUID = 0L;
     if (obj == this) {
      return true;
     }
-    if (!(obj instanceof vsg.SetMessage)) {
+    if (!(obj instanceof vsg.RootMessage)) {
       return super.equals(obj);
     }
-    vsg.SetMessage other = (vsg.SetMessage) obj;
+    vsg.RootMessage other = (vsg.RootMessage) obj;
 
     if (!getCommandCase().equals(other.getCommandCase())) return false;
     switch (commandCase_) {
@@ -272,6 +326,10 @@ private static final long serialVersionUID = 0L;
       case 2:
         if (!getSetBgColor()
             .equals(other.getSetBgColor())) return false;
+        break;
+      case 3:
+        if (!getSetTexture()
+            .equals(other.getSetTexture())) return false;
         break;
       case 0:
       default:
@@ -296,6 +354,10 @@ private static final long serialVersionUID = 0L;
         hash = (37 * hash) + SET_BG_COLOR_FIELD_NUMBER;
         hash = (53 * hash) + getSetBgColor().hashCode();
         break;
+      case 3:
+        hash = (37 * hash) + SET_TEXTURE_FIELD_NUMBER;
+        hash = (53 * hash) + getSetTexture().hashCode();
+        break;
       case 0:
       default:
     }
@@ -304,69 +366,69 @@ private static final long serialVersionUID = 0L;
     return hash;
   }
 
-  public static vsg.SetMessage parseFrom(
+  public static vsg.RootMessage parseFrom(
       java.nio.ByteBuffer data)
       throws com.google.protobuf.InvalidProtocolBufferException {
     return PARSER.parseFrom(data);
   }
-  public static vsg.SetMessage parseFrom(
+  public static vsg.RootMessage parseFrom(
       java.nio.ByteBuffer data,
       com.google.protobuf.ExtensionRegistryLite extensionRegistry)
       throws com.google.protobuf.InvalidProtocolBufferException {
     return PARSER.parseFrom(data, extensionRegistry);
   }
-  public static vsg.SetMessage parseFrom(
+  public static vsg.RootMessage parseFrom(
       com.google.protobuf.ByteString data)
       throws com.google.protobuf.InvalidProtocolBufferException {
     return PARSER.parseFrom(data);
   }
-  public static vsg.SetMessage parseFrom(
+  public static vsg.RootMessage parseFrom(
       com.google.protobuf.ByteString data,
       com.google.protobuf.ExtensionRegistryLite extensionRegistry)
       throws com.google.protobuf.InvalidProtocolBufferException {
     return PARSER.parseFrom(data, extensionRegistry);
   }
-  public static vsg.SetMessage parseFrom(byte[] data)
+  public static vsg.RootMessage parseFrom(byte[] data)
       throws com.google.protobuf.InvalidProtocolBufferException {
     return PARSER.parseFrom(data);
   }
-  public static vsg.SetMessage parseFrom(
+  public static vsg.RootMessage parseFrom(
       byte[] data,
       com.google.protobuf.ExtensionRegistryLite extensionRegistry)
       throws com.google.protobuf.InvalidProtocolBufferException {
     return PARSER.parseFrom(data, extensionRegistry);
   }
-  public static vsg.SetMessage parseFrom(java.io.InputStream input)
+  public static vsg.RootMessage parseFrom(java.io.InputStream input)
       throws java.io.IOException {
     return com.google.protobuf.GeneratedMessageV3
         .parseWithIOException(PARSER, input);
   }
-  public static vsg.SetMessage parseFrom(
+  public static vsg.RootMessage parseFrom(
       java.io.InputStream input,
       com.google.protobuf.ExtensionRegistryLite extensionRegistry)
       throws java.io.IOException {
     return com.google.protobuf.GeneratedMessageV3
         .parseWithIOException(PARSER, input, extensionRegistry);
   }
-  public static vsg.SetMessage parseDelimitedFrom(java.io.InputStream input)
+  public static vsg.RootMessage parseDelimitedFrom(java.io.InputStream input)
       throws java.io.IOException {
     return com.google.protobuf.GeneratedMessageV3
         .parseDelimitedWithIOException(PARSER, input);
   }
-  public static vsg.SetMessage parseDelimitedFrom(
+  public static vsg.RootMessage parseDelimitedFrom(
       java.io.InputStream input,
       com.google.protobuf.ExtensionRegistryLite extensionRegistry)
       throws java.io.IOException {
     return com.google.protobuf.GeneratedMessageV3
         .parseDelimitedWithIOException(PARSER, input, extensionRegistry);
   }
-  public static vsg.SetMessage parseFrom(
+  public static vsg.RootMessage parseFrom(
       com.google.protobuf.CodedInputStream input)
       throws java.io.IOException {
     return com.google.protobuf.GeneratedMessageV3
         .parseWithIOException(PARSER, input);
   }
-  public static vsg.SetMessage parseFrom(
+  public static vsg.RootMessage parseFrom(
       com.google.protobuf.CodedInputStream input,
       com.google.protobuf.ExtensionRegistryLite extensionRegistry)
       throws java.io.IOException {
@@ -379,7 +441,7 @@ private static final long serialVersionUID = 0L;
   public static Builder newBuilder() {
     return DEFAULT_INSTANCE.toBuilder();
   }
-  public static Builder newBuilder(vsg.SetMessage prototype) {
+  public static Builder newBuilder(vsg.RootMessage prototype) {
     return DEFAULT_INSTANCE.toBuilder().mergeFrom(prototype);
   }
   @java.lang.Override
@@ -395,26 +457,26 @@ private static final long serialVersionUID = 0L;
     return builder;
   }
   /**
-   * Protobuf type {@code vsg.SetMessage}
+   * Protobuf type {@code vsg.RootMessage}
    */
   public static final class Builder extends
       com.google.protobuf.GeneratedMessageV3.Builder<Builder> implements
-      // @@protoc_insertion_point(builder_implements:vsg.SetMessage)
-      vsg.SetMessageOrBuilder {
+      // @@protoc_insertion_point(builder_implements:vsg.RootMessage)
+      vsg.RootMessageOrBuilder {
     public static final com.google.protobuf.Descriptors.Descriptor
         getDescriptor() {
-      return vsg.Vsg.internal_static_vsg_SetMessage_descriptor;
+      return vsg.Vsg.internal_static_vsg_RootMessage_descriptor;
     }
 
     @java.lang.Override
     protected com.google.protobuf.GeneratedMessageV3.FieldAccessorTable
         internalGetFieldAccessorTable() {
-      return vsg.Vsg.internal_static_vsg_SetMessage_fieldAccessorTable
+      return vsg.Vsg.internal_static_vsg_RootMessage_fieldAccessorTable
           .ensureFieldAccessorsInitialized(
-              vsg.SetMessage.class, vsg.SetMessage.Builder.class);
+              vsg.RootMessage.class, vsg.RootMessage.Builder.class);
     }
 
-    // Construct using vsg.SetMessage.newBuilder()
+    // Construct using vsg.RootMessage.newBuilder()
     private Builder() {
       maybeForceBuilderInitialization();
     }
@@ -440,17 +502,17 @@ private static final long serialVersionUID = 0L;
     @java.lang.Override
     public com.google.protobuf.Descriptors.Descriptor
         getDescriptorForType() {
-      return vsg.Vsg.internal_static_vsg_SetMessage_descriptor;
+      return vsg.Vsg.internal_static_vsg_RootMessage_descriptor;
     }
 
     @java.lang.Override
-    public vsg.SetMessage getDefaultInstanceForType() {
-      return vsg.SetMessage.getDefaultInstance();
+    public vsg.RootMessage getDefaultInstanceForType() {
+      return vsg.RootMessage.getDefaultInstance();
     }
 
     @java.lang.Override
-    public vsg.SetMessage build() {
-      vsg.SetMessage result = buildPartial();
+    public vsg.RootMessage build() {
+      vsg.RootMessage result = buildPartial();
       if (!result.isInitialized()) {
         throw newUninitializedMessageException(result);
       }
@@ -458,8 +520,8 @@ private static final long serialVersionUID = 0L;
     }
 
     @java.lang.Override
-    public vsg.SetMessage buildPartial() {
-      vsg.SetMessage result = new vsg.SetMessage(this);
+    public vsg.RootMessage buildPartial() {
+      vsg.RootMessage result = new vsg.RootMessage(this);
       if (commandCase_ == 1) {
         if (setShapeBuilder_ == null) {
           result.command_ = command_;
@@ -472,6 +534,13 @@ private static final long serialVersionUID = 0L;
           result.command_ = command_;
         } else {
           result.command_ = setBgColorBuilder_.build();
+        }
+      }
+      if (commandCase_ == 3) {
+        if (setTextureBuilder_ == null) {
+          result.command_ = command_;
+        } else {
+          result.command_ = setTextureBuilder_.build();
         }
       }
       result.commandCase_ = commandCase_;
@@ -513,16 +582,16 @@ private static final long serialVersionUID = 0L;
     }
     @java.lang.Override
     public Builder mergeFrom(com.google.protobuf.Message other) {
-      if (other instanceof vsg.SetMessage) {
-        return mergeFrom((vsg.SetMessage)other);
+      if (other instanceof vsg.RootMessage) {
+        return mergeFrom((vsg.RootMessage)other);
       } else {
         super.mergeFrom(other);
         return this;
       }
     }
 
-    public Builder mergeFrom(vsg.SetMessage other) {
-      if (other == vsg.SetMessage.getDefaultInstance()) return this;
+    public Builder mergeFrom(vsg.RootMessage other) {
+      if (other == vsg.RootMessage.getDefaultInstance()) return this;
       switch (other.getCommandCase()) {
         case SET_SHAPE: {
           mergeSetShape(other.getSetShape());
@@ -530,6 +599,10 @@ private static final long serialVersionUID = 0L;
         }
         case SET_BG_COLOR: {
           mergeSetBgColor(other.getSetBgColor());
+          break;
+        }
+        case SET_TEXTURE: {
+          mergeSetTexture(other.getSetTexture());
           break;
         }
         case COMMAND_NOT_SET: {
@@ -551,11 +624,11 @@ private static final long serialVersionUID = 0L;
         com.google.protobuf.CodedInputStream input,
         com.google.protobuf.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
-      vsg.SetMessage parsedMessage = null;
+      vsg.RootMessage parsedMessage = null;
       try {
         parsedMessage = PARSER.parsePartialFrom(input, extensionRegistry);
       } catch (com.google.protobuf.InvalidProtocolBufferException e) {
-        parsedMessage = (vsg.SetMessage) e.getUnfinishedMessage();
+        parsedMessage = (vsg.RootMessage) e.getUnfinishedMessage();
         throw e.unwrapIOException();
       } finally {
         if (parsedMessage != null) {
@@ -581,7 +654,7 @@ private static final long serialVersionUID = 0L;
 
 
     private com.google.protobuf.SingleFieldBuilderV3<
-        vsg.Shape, vsg.Shape.Builder, vsg.ShapeOrBuilder> setShapeBuilder_;
+        vsg.shapes.Shape, vsg.shapes.Shape.Builder, vsg.shapes.ShapeOrBuilder> setShapeBuilder_;
     /**
      * <code>.vsg.Shape set_shape = 1;</code>
      * @return Whether the setShape field is set.
@@ -595,23 +668,23 @@ private static final long serialVersionUID = 0L;
      * @return The setShape.
      */
     @java.lang.Override
-    public vsg.Shape getSetShape() {
+    public vsg.shapes.Shape getSetShape() {
       if (setShapeBuilder_ == null) {
         if (commandCase_ == 1) {
-          return (vsg.Shape) command_;
+          return (vsg.shapes.Shape) command_;
         }
-        return vsg.Shape.getDefaultInstance();
+        return vsg.shapes.Shape.getDefaultInstance();
       } else {
         if (commandCase_ == 1) {
           return setShapeBuilder_.getMessage();
         }
-        return vsg.Shape.getDefaultInstance();
+        return vsg.shapes.Shape.getDefaultInstance();
       }
     }
     /**
      * <code>.vsg.Shape set_shape = 1;</code>
      */
-    public Builder setSetShape(vsg.Shape value) {
+    public Builder setSetShape(vsg.shapes.Shape value) {
       if (setShapeBuilder_ == null) {
         if (value == null) {
           throw new NullPointerException();
@@ -628,7 +701,7 @@ private static final long serialVersionUID = 0L;
      * <code>.vsg.Shape set_shape = 1;</code>
      */
     public Builder setSetShape(
-        vsg.Shape.Builder builderForValue) {
+        vsg.shapes.Shape.Builder builderForValue) {
       if (setShapeBuilder_ == null) {
         command_ = builderForValue.build();
         onChanged();
@@ -641,11 +714,11 @@ private static final long serialVersionUID = 0L;
     /**
      * <code>.vsg.Shape set_shape = 1;</code>
      */
-    public Builder mergeSetShape(vsg.Shape value) {
+    public Builder mergeSetShape(vsg.shapes.Shape value) {
       if (setShapeBuilder_ == null) {
         if (commandCase_ == 1 &&
-            command_ != vsg.Shape.getDefaultInstance()) {
-          command_ = vsg.Shape.newBuilder((vsg.Shape) command_)
+            command_ != vsg.shapes.Shape.getDefaultInstance()) {
+          command_ = vsg.shapes.Shape.newBuilder((vsg.shapes.Shape) command_)
               .mergeFrom(value).buildPartial();
         } else {
           command_ = value;
@@ -682,36 +755,36 @@ private static final long serialVersionUID = 0L;
     /**
      * <code>.vsg.Shape set_shape = 1;</code>
      */
-    public vsg.Shape.Builder getSetShapeBuilder() {
+    public vsg.shapes.Shape.Builder getSetShapeBuilder() {
       return getSetShapeFieldBuilder().getBuilder();
     }
     /**
      * <code>.vsg.Shape set_shape = 1;</code>
      */
     @java.lang.Override
-    public vsg.ShapeOrBuilder getSetShapeOrBuilder() {
+    public vsg.shapes.ShapeOrBuilder getSetShapeOrBuilder() {
       if ((commandCase_ == 1) && (setShapeBuilder_ != null)) {
         return setShapeBuilder_.getMessageOrBuilder();
       } else {
         if (commandCase_ == 1) {
-          return (vsg.Shape) command_;
+          return (vsg.shapes.Shape) command_;
         }
-        return vsg.Shape.getDefaultInstance();
+        return vsg.shapes.Shape.getDefaultInstance();
       }
     }
     /**
      * <code>.vsg.Shape set_shape = 1;</code>
      */
     private com.google.protobuf.SingleFieldBuilderV3<
-        vsg.Shape, vsg.Shape.Builder, vsg.ShapeOrBuilder> 
+        vsg.shapes.Shape, vsg.shapes.Shape.Builder, vsg.shapes.ShapeOrBuilder> 
         getSetShapeFieldBuilder() {
       if (setShapeBuilder_ == null) {
         if (!(commandCase_ == 1)) {
-          command_ = vsg.Shape.getDefaultInstance();
+          command_ = vsg.shapes.Shape.getDefaultInstance();
         }
         setShapeBuilder_ = new com.google.protobuf.SingleFieldBuilderV3<
-            vsg.Shape, vsg.Shape.Builder, vsg.ShapeOrBuilder>(
-                (vsg.Shape) command_,
+            vsg.shapes.Shape, vsg.shapes.Shape.Builder, vsg.shapes.ShapeOrBuilder>(
+                (vsg.shapes.Shape) command_,
                 getParentForChildren(),
                 isClean());
         command_ = null;
@@ -861,6 +934,147 @@ private static final long serialVersionUID = 0L;
       onChanged();;
       return setBgColorBuilder_;
     }
+
+    private com.google.protobuf.SingleFieldBuilderV3<
+        vsg.Texture, vsg.Texture.Builder, vsg.TextureOrBuilder> setTextureBuilder_;
+    /**
+     * <code>.vsg.Texture set_texture = 3;</code>
+     * @return Whether the setTexture field is set.
+     */
+    @java.lang.Override
+    public boolean hasSetTexture() {
+      return commandCase_ == 3;
+    }
+    /**
+     * <code>.vsg.Texture set_texture = 3;</code>
+     * @return The setTexture.
+     */
+    @java.lang.Override
+    public vsg.Texture getSetTexture() {
+      if (setTextureBuilder_ == null) {
+        if (commandCase_ == 3) {
+          return (vsg.Texture) command_;
+        }
+        return vsg.Texture.getDefaultInstance();
+      } else {
+        if (commandCase_ == 3) {
+          return setTextureBuilder_.getMessage();
+        }
+        return vsg.Texture.getDefaultInstance();
+      }
+    }
+    /**
+     * <code>.vsg.Texture set_texture = 3;</code>
+     */
+    public Builder setSetTexture(vsg.Texture value) {
+      if (setTextureBuilder_ == null) {
+        if (value == null) {
+          throw new NullPointerException();
+        }
+        command_ = value;
+        onChanged();
+      } else {
+        setTextureBuilder_.setMessage(value);
+      }
+      commandCase_ = 3;
+      return this;
+    }
+    /**
+     * <code>.vsg.Texture set_texture = 3;</code>
+     */
+    public Builder setSetTexture(
+        vsg.Texture.Builder builderForValue) {
+      if (setTextureBuilder_ == null) {
+        command_ = builderForValue.build();
+        onChanged();
+      } else {
+        setTextureBuilder_.setMessage(builderForValue.build());
+      }
+      commandCase_ = 3;
+      return this;
+    }
+    /**
+     * <code>.vsg.Texture set_texture = 3;</code>
+     */
+    public Builder mergeSetTexture(vsg.Texture value) {
+      if (setTextureBuilder_ == null) {
+        if (commandCase_ == 3 &&
+            command_ != vsg.Texture.getDefaultInstance()) {
+          command_ = vsg.Texture.newBuilder((vsg.Texture) command_)
+              .mergeFrom(value).buildPartial();
+        } else {
+          command_ = value;
+        }
+        onChanged();
+      } else {
+        if (commandCase_ == 3) {
+          setTextureBuilder_.mergeFrom(value);
+        }
+        setTextureBuilder_.setMessage(value);
+      }
+      commandCase_ = 3;
+      return this;
+    }
+    /**
+     * <code>.vsg.Texture set_texture = 3;</code>
+     */
+    public Builder clearSetTexture() {
+      if (setTextureBuilder_ == null) {
+        if (commandCase_ == 3) {
+          commandCase_ = 0;
+          command_ = null;
+          onChanged();
+        }
+      } else {
+        if (commandCase_ == 3) {
+          commandCase_ = 0;
+          command_ = null;
+        }
+        setTextureBuilder_.clear();
+      }
+      return this;
+    }
+    /**
+     * <code>.vsg.Texture set_texture = 3;</code>
+     */
+    public vsg.Texture.Builder getSetTextureBuilder() {
+      return getSetTextureFieldBuilder().getBuilder();
+    }
+    /**
+     * <code>.vsg.Texture set_texture = 3;</code>
+     */
+    @java.lang.Override
+    public vsg.TextureOrBuilder getSetTextureOrBuilder() {
+      if ((commandCase_ == 3) && (setTextureBuilder_ != null)) {
+        return setTextureBuilder_.getMessageOrBuilder();
+      } else {
+        if (commandCase_ == 3) {
+          return (vsg.Texture) command_;
+        }
+        return vsg.Texture.getDefaultInstance();
+      }
+    }
+    /**
+     * <code>.vsg.Texture set_texture = 3;</code>
+     */
+    private com.google.protobuf.SingleFieldBuilderV3<
+        vsg.Texture, vsg.Texture.Builder, vsg.TextureOrBuilder> 
+        getSetTextureFieldBuilder() {
+      if (setTextureBuilder_ == null) {
+        if (!(commandCase_ == 3)) {
+          command_ = vsg.Texture.getDefaultInstance();
+        }
+        setTextureBuilder_ = new com.google.protobuf.SingleFieldBuilderV3<
+            vsg.Texture, vsg.Texture.Builder, vsg.TextureOrBuilder>(
+                (vsg.Texture) command_,
+                getParentForChildren(),
+                isClean());
+        command_ = null;
+      }
+      commandCase_ = 3;
+      onChanged();;
+      return setTextureBuilder_;
+    }
     @java.lang.Override
     public final Builder setUnknownFields(
         final com.google.protobuf.UnknownFieldSet unknownFields) {
@@ -874,41 +1088,41 @@ private static final long serialVersionUID = 0L;
     }
 
 
-    // @@protoc_insertion_point(builder_scope:vsg.SetMessage)
+    // @@protoc_insertion_point(builder_scope:vsg.RootMessage)
   }
 
-  // @@protoc_insertion_point(class_scope:vsg.SetMessage)
-  private static final vsg.SetMessage DEFAULT_INSTANCE;
+  // @@protoc_insertion_point(class_scope:vsg.RootMessage)
+  private static final vsg.RootMessage DEFAULT_INSTANCE;
   static {
-    DEFAULT_INSTANCE = new vsg.SetMessage();
+    DEFAULT_INSTANCE = new vsg.RootMessage();
   }
 
-  public static vsg.SetMessage getDefaultInstance() {
+  public static vsg.RootMessage getDefaultInstance() {
     return DEFAULT_INSTANCE;
   }
 
-  private static final com.google.protobuf.Parser<SetMessage>
-      PARSER = new com.google.protobuf.AbstractParser<SetMessage>() {
+  private static final com.google.protobuf.Parser<RootMessage>
+      PARSER = new com.google.protobuf.AbstractParser<RootMessage>() {
     @java.lang.Override
-    public SetMessage parsePartialFrom(
+    public RootMessage parsePartialFrom(
         com.google.protobuf.CodedInputStream input,
         com.google.protobuf.ExtensionRegistryLite extensionRegistry)
         throws com.google.protobuf.InvalidProtocolBufferException {
-      return new SetMessage(input, extensionRegistry);
+      return new RootMessage(input, extensionRegistry);
     }
   };
 
-  public static com.google.protobuf.Parser<SetMessage> parser() {
+  public static com.google.protobuf.Parser<RootMessage> parser() {
     return PARSER;
   }
 
   @java.lang.Override
-  public com.google.protobuf.Parser<SetMessage> getParserForType() {
+  public com.google.protobuf.Parser<RootMessage> getParserForType() {
     return PARSER;
   }
 
   @java.lang.Override
-  public vsg.SetMessage getDefaultInstanceForType() {
+  public vsg.RootMessage getDefaultInstanceForType() {
     return DEFAULT_INSTANCE;
   }
 
