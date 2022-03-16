@@ -6,10 +6,10 @@ use std::time::Instant;
 use std::{io::Read, net::TcpListener};
 
 use env_logger::TimestampPrecision;
-use winit::dpi::PhysicalSize;
 use winit::{
     event::*,
     event_loop::{ControlFlow, EventLoop},
+    monitor::MonitorHandle,
     window::{Fullscreen, Window, WindowBuilder},
 };
 
@@ -39,6 +39,9 @@ struct Args {
 
     #[clap(short, long)]
     fullscreen: bool,
+
+    #[clap(short, long, default_value = "0")]
+    monitor: usize,
 }
 
 struct State {
@@ -74,7 +77,7 @@ impl State {
                 &wgpu::DeviceDescriptor {
                     label: None,
                     features: wgpu::Features::empty(),
-                    limits: wgpu::Limits::default(),
+                    limits: wgpu::Limits::downlevel_defaults(),
                 },
                 None, // Trace path
             )
@@ -275,6 +278,20 @@ fn handle_connection(
     Ok(())
 }
 
+// Enumerate monitors and prompt user to choose one
+fn prompt_for_monitor(event_loop: &EventLoop<()>, idx: usize) -> MonitorHandle {
+    for (num, monitor) in event_loop.available_monitors().enumerate() {
+        log::debug!("Monitor #{}: {:?}", num, monitor.name());
+    }
+
+    let monitor = event_loop
+        .available_monitors()
+        .nth(idx)
+        .expect("Please enter a valid ID");
+
+    monitor
+}
+
 fn main() {
     env_logger::builder()
         .format_timestamp(Some(TimestampPrecision::Millis))
@@ -291,16 +308,14 @@ fn main() {
 
     if args.fullscreen {
         // window.set_fullscreen(Some(Fullscreen::Borderless(None)));
-        let monitors: Vec<_> = window.available_monitors().collect();
-        log::debug!("{:?}", &monitors);
-        let monitor = &monitors[1];
-        let mut video_modes: Vec<_> = monitor.video_modes().collect();
-        log::debug!("{:?}", &video_modes);
-        let video_mode = video_modes.remove(0);
-        window.set_fullscreen(Some(Fullscreen::Exclusive(video_mode)));
+        let monitor = prompt_for_monitor(&event_loop, args.monitor);
+        window.set_fullscreen(Some(Fullscreen::Borderless(Some(monitor))));
     }
     window.set_cursor_visible(false);
-    window.set_cursor_grab(true).unwrap();
+    match window.set_cursor_grab(true) {
+        Ok(()) => log::debug!("Grabbing cursor"),
+        Err(e) => log::error!("{:?}", e),
+    };
 
     // State::new uses async code, so we're going to wait for it to finish
     let mut state = pollster::block_on(State::new(&window));

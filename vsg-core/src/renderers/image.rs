@@ -1,5 +1,5 @@
 use super::StimulusRenderer;
-use crate::{texture, vertex::VertexTexture};
+use crate::vertex::VertexTexture;
 use wgpu::util::DeviceExt;
 
 const VERTICES: &[VertexTexture] = &[
