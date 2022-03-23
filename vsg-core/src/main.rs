@@ -6,6 +6,9 @@ use std::time::Instant;
 use std::{io::Read, net::TcpListener};
 
 use env_logger::TimestampPrecision;
+use imgui::FontSource;
+use imgui_wgpu::Renderer;
+use winit::dpi::PhysicalSize;
 use winit::{
     event::*,
     event_loop::{ControlFlow, EventLoop},
@@ -46,9 +49,9 @@ struct Args {
 
 struct State {
     surface: wgpu::Surface,
-    device: wgpu::Device,
-    queue: wgpu::Queue,
-    config: wgpu::SurfaceConfiguration,
+    pub device: wgpu::Device,
+    pub queue: wgpu::Queue,
+    pub config: wgpu::SurfaceConfiguration,
     picture: Option<Picture>,
     size: winit::dpi::PhysicalSize<u32>,
     scene: Scene,
@@ -185,7 +188,11 @@ impl State {
         ));
     }
 
-    fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
+    fn render(
+        &mut self,
+        renderer: &mut Renderer,
+        ui: imgui::Ui,
+    ) -> Result<(), wgpu::SurfaceError> {
         let output = self.surface.get_current_texture()?;
         let view = output
             .texture
@@ -214,6 +221,10 @@ impl State {
                 image.render(&mut render_pass);
             }
             self.scene.render(&mut render_pass);
+
+            renderer
+                .render(ui.render(), &self.queue, &self.device, &mut render_pass)
+                .expect("Rendering failed");
         }
 
         self.queue.submit(std::iter::once(encoder.finish()));
@@ -312,14 +323,46 @@ fn main() {
         window.set_fullscreen(Some(Fullscreen::Borderless(Some(monitor))));
     }
     window.set_cursor_visible(false);
-    match window.set_cursor_grab(true) {
-        Ok(()) => log::debug!("Grabbing cursor"),
-        Err(e) => log::error!("{:?}", e),
-    };
+    //match window.set_cursor_grab(true) {
+    //    Ok(()) => log::debug!("Grabbing cursor"),
+    //    Err(e) => log::error!("{:?}", e),
+    //};
 
     // State::new uses async code, so we're going to wait for it to finish
     let mut state = pollster::block_on(State::new(&window));
     window.set_visible(true);
+
+    // Set up dear imgui
+    let mut imgui = imgui::Context::create();
+    let mut platform = imgui_winit_support::WinitPlatform::init(&mut imgui);
+    platform.attach_window(
+        imgui.io_mut(),
+        &window,
+        imgui_winit_support::HiDpiMode::Default,
+    );
+    imgui.set_ini_filename(None);
+
+    let hidpi_factor = window.scale_factor();
+    let font_size = (13.0 * hidpi_factor) as f32;
+    imgui.io_mut().font_global_scale = (1.0 / hidpi_factor) as f32;
+
+    imgui.fonts().add_font(&[FontSource::DefaultFontData {
+        config: Some(imgui::FontConfig {
+            oversample_h: 1,
+            pixel_snap_h: true,
+            size_pixels: font_size,
+            ..Default::default()
+        }),
+    }]);
+
+    // Set up dear imgui wgpu renderer
+    let renderer_config = imgui_wgpu::RendererConfig {
+        texture_format: state.config.format,
+        ..Default::default()
+    };
+
+    let mut renderer =
+        imgui_wgpu::Renderer::new(&mut imgui, &state.device, &state.queue, renderer_config);
 
     let mut last_frame_inst = Instant::now();
 
@@ -339,6 +382,7 @@ fn main() {
             }
         }
     });
+    let mut demo_open = true;
     event_loop.run(move |event, _, control_flow| {
         // *control_flow = ControlFlow::Wait;
         // info!("{:?}", event);
@@ -385,7 +429,41 @@ fn main() {
                     }
                     t.clear();
                 }
-                match state.render() {
+                let delta_s = last_frame_inst.elapsed();
+                imgui.io_mut().update_delta_time(delta_s);
+
+                platform
+                    .prepare_frame(imgui.io_mut(), &window)
+                    .expect("Failed to prepare frame");
+                let ui = imgui.frame();
+                {
+                    let window = imgui::Window::new("Hello world");
+                    window
+                        .size([300.0, 100.0], imgui::Condition::FirstUseEver)
+                        .build(&ui, || {
+                            ui.text("Hello world!");
+                            ui.text("This...is...imgui-rs on WGPU!");
+                            ui.separator();
+                            let mouse_pos = ui.io().mouse_pos;
+                            ui.text(format!(
+                                "Mouse Position: ({:.1},{:.1})",
+                                mouse_pos[0], mouse_pos[1]
+                            ));
+                        });
+
+                    let window = imgui::Window::new("Hello too");
+                    window
+                        .size([400.0, 200.0], imgui::Condition::FirstUseEver)
+                        .position([400.0, 200.0], imgui::Condition::FirstUseEver)
+                        .build(&ui, || {
+                            ui.text(format!("Frametime: {:?}", delta_s));
+                        });
+
+                    ui.show_demo_window(&mut demo_open);
+                }
+                platform.prepare_render(&ui, &window);
+
+                match state.render(&mut renderer, ui) {
                     Ok(_) => {}
                     // Reconfigure the surface if lost
                     Err(wgpu::SurfaceError::Lost) => state.resize(state.size),
@@ -402,5 +480,7 @@ fn main() {
             }
             _ => {}
         }
+
+        platform.handle_event(imgui.io_mut(), &window, &event)
     });
 }
