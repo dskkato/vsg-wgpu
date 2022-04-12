@@ -8,7 +8,7 @@ winit = "0.26"
 cgmath = "0.18"
 env_logger = "0.9"
 log = "0.4"
-wgpu = "0.12"
+wgpu = { git = "https://github.com/gfx-rs/wgpu", revision = "988990c24d0933c82cdd661708a3f5bcb4533ea3" }
 pollster = "0.2"
 bytemuck = { version="1.4", features = ["derive"] }
 anyhow = "1.0"
