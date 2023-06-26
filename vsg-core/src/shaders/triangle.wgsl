@@ -8,7 +8,7 @@ struct VertexOutput {
     @location(0) color: vec4<f32>,
 };
 
-@stage(vertex)
+@vertex
 fn vs_main(input: VertexInput) -> VertexOutput {
     var out: VertexOutput;
 
@@ -18,7 +18,7 @@ fn vs_main(input: VertexInput) -> VertexOutput {
     return out;
 }
 
-@stage(fragment)
+@fragment
 fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
     return input.color;
 }

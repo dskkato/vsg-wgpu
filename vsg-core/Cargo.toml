@@ -4,13 +4,13 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-winit = "0.26"
+winit = "0.27.1"
 cgmath = "0.18"
-env_logger = "0.9"
+env_logger = "0.10"
 log = "0.4"
-wgpu = { git = "https://github.com/gfx-rs/wgpu", rev = "988990c24d0933c82cdd661708a3f5bcb4533ea3" }
+wgpu = "0.16.1"
 pollster = "0.2"
-bytemuck = { version="1.4", features = ["derive"] }
+bytemuck = { version="1.13", features = ["derive"] }
 anyhow = "1.0"
 serde = { version="1.0", features = ["derive"] }
 serde_json = "1.0"
@@ -21,5 +21,5 @@ prost = "0.9.0"
 vsg-messages = { path = "../vsg-messages/rust" }
 
 [dependencies.image_rs]
-version = "0.23"
+version = "0.24"
 package = "image"

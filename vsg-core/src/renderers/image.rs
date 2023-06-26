@@ -79,7 +79,7 @@ impl Picture {
             label: Some("diffuse_bind_group"),
         });
 
-        let shader_with_texture = device.create_shader_module(&wgpu::ShaderModuleDescriptor {
+        let shader_with_texture = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("TextureShader"),
             source: wgpu::ShaderSource::Wgsl(
                 include_str!("../shaders/shader_with_texture.wgsl").into(),
@@ -105,14 +105,14 @@ impl Picture {
                 fragment: Some(wgpu::FragmentState {
                     module: &shader_with_texture,
                     entry_point: "fs_main",
-                    targets: &[wgpu::ColorTargetState {
+                    targets: &[Some(wgpu::ColorTargetState {
                         format: *format,
                         blend: Some(wgpu::BlendState {
                             color: wgpu::BlendComponent::REPLACE,
                             alpha: wgpu::BlendComponent::REPLACE,
                         }),
                         write_mask: wgpu::ColorWrites::ALL,
-                    }],
+                    })],
                 }),
                 primitive: wgpu::PrimitiveState {
                     topology: wgpu::PrimitiveTopology::TriangleList,

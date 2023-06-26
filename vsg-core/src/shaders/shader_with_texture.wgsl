@@ -9,7 +9,7 @@ struct VertexOutput {
     @location(1) tex_coords: vec2<f32>,
 };
 
-@stage(vertex)
+@vertex
 fn vs_main(
     model: VertexInput,
 ) -> VertexOutput {
@@ -28,7 +28,7 @@ var t_diffuse: texture_2d<f32>;
 @binding(1)
 var s_diffuse: sampler;
 
-@stage(fragment)
+@fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     return textureSample(t_diffuse, s_diffuse, in.tex_coords);
 }

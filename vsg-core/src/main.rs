@@ -57,12 +57,18 @@ struct State {
 
 impl State {
     async fn new(window: &Window) -> Self {
-        let size = window.inner_size();
-
         // The instance is a handle to our GPU
         // BackendBit::PRIMARY => Vulkan + Metal + DX12 + Browser WebGPU
-        let instance = wgpu::Instance::new(wgpu::Backends::all());
-        let surface = unsafe { instance.create_surface(window) };
+        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
+            backends: wgpu::Backends::all(),
+            dx12_shader_compiler: Default::default(),
+        });
+        let (size, surface) = unsafe {
+            let size = window.inner_size();
+            let surface = instance.create_surface(&window).unwrap();
+
+            (size, surface)
+        };
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions {
                 power_preference: wgpu::PowerPreference::default(),
@@ -84,12 +90,22 @@ impl State {
             .await
             .unwrap();
 
+        let surface_caps = surface.get_capabilities(&adapter);
+        let surface_format = surface_caps
+            .formats
+            .iter()
+            .copied()
+            .next()
+            .unwrap_or(surface_caps.formats[0]);
+
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-            format: surface.get_preferred_format(&adapter).unwrap(),
+            format: surface_format,
             width: size.width,
             height: size.height,
             present_mode: wgpu::PresentMode::Fifo,
+            alpha_mode: wgpu::CompositeAlphaMode::Auto,
+            view_formats: vec![],
         };
         surface.configure(&device, &config);
 
@@ -198,22 +214,22 @@ impl State {
             });
 
         {
-            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("Render Pass"),
-                color_attachments: &[wgpu::RenderPassColorAttachment {
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                     view: &view,
                     resolve_target: None,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(self.bg_color),
                         store: true,
                     },
-                }],
+                })],
                 depth_stencil_attachment: None,
             });
             if let Some(image) = &self.picture {
-                image.render(&mut render_pass);
+                image.render(&mut rpass);
             }
-            self.scene.render(&mut render_pass);
+            self.scene.render(&mut rpass);
         }
 
         self.queue.submit(std::iter::once(encoder.finish()));
@@ -312,7 +328,7 @@ fn main() {
         window.set_fullscreen(Some(Fullscreen::Borderless(Some(monitor))));
     }
     window.set_cursor_visible(false);
-    match window.set_cursor_grab(true) {
+    match window.set_cursor_grab(winit::window::CursorGrabMode::Confined) {
         Ok(()) => log::debug!("Grabbing cursor"),
         Err(e) => log::error!("{:?}", e),
     };
