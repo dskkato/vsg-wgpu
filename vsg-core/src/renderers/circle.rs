@@ -26,8 +26,8 @@ impl Circle {
         for i in 0..n_vertices {
             let v = Vertex2D {
                 position: [
-                    radius * (6.28 as f32 * i as f32 / n_vertices as f32).cos() + x_ctr,
-                    radius * (6.28 as f32 * i as f32 / n_vertices as f32).sin() + y_ctr,
+                    radius * (std::f32::consts::TAU * i as f32 / n_vertices as f32).cos() + x_ctr,
+                    radius * (std::f32::consts::TAU * i as f32 / n_vertices as f32).sin() + y_ctr,
                 ],
                 color: *color,
             };

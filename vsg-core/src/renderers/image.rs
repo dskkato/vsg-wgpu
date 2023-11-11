@@ -62,7 +62,7 @@ impl Picture {
             });
 
         let diffuse_texture =
-            crate::texture::Texture::from_bytes(&device, &queue, buf, "xx").unwrap();
+            crate::texture::Texture::from_bytes(device, queue, buf, "xx").unwrap();
 
         let diffuse_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
             layout: &texture_bind_group_layout,

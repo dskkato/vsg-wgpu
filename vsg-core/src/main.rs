@@ -171,10 +171,8 @@ impl State {
                 Box::new(Cross::new(
                     &self.device,
                     &self.config.format,
-                    ctr.x,
-                    ctr.y,
-                    *size,
-                    *size,
+                    &Coordinates { x: ctr.x, y: ctr.y },
+                    &Coordinates { x: *size, y: *size },
                     *line_width,
                     &[0.0, 0.0, 0.2, 1.0],
                 ))
@@ -291,8 +289,8 @@ fn handle_connection(
         let msg = b"{\"type\": \"success\"}";
         let len = msg.len() as u32;
         log::trace!("{}", len);
-        stream.write(&len.to_be_bytes())?;
-        stream.write(msg)?;
+        let _ = stream.write(&len.to_be_bytes())?;
+        let _ = stream.write(msg)?;
         stream.flush()?;
     }
     Ok(())
@@ -304,12 +302,10 @@ fn prompt_for_monitor(event_loop: &EventLoop<()>, idx: usize) -> MonitorHandle {
         log::debug!("Monitor #{}: {:?}", num, monitor.name());
     }
 
-    let monitor = event_loop
+    event_loop
         .available_monitors()
         .nth(idx)
-        .expect("Please enter a valid ID");
-
-    monitor
+        .expect("Please enter a valid ID")
 }
 
 fn main() {
@@ -398,8 +394,8 @@ fn main() {
                     let mut t = message_bucket.lock().unwrap();
                     // 暫定：最後のコマンドだけを実行する
                     match t.last() {
-                        Some(Command::Draw(shape)) => state.update_shape(&shape),
-                        Some(Command::Clear(color)) => state.update_bg_color(&color),
+                        Some(Command::Draw(shape)) => state.update_shape(shape),
+                        Some(Command::Clear(color)) => state.update_bg_color(color),
                         Some(Command::Texture(idx, texture)) => state.update_texture(*idx, texture),
                         _ => {}
                     }
