@@ -86,13 +86,13 @@ impl Triangle {
     pub fn prepare(&mut self, device: &wgpu::Device, vertices: &[Vertex2D], indices: &[u16]) {
         let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Vertex Buffer"),
-            contents: bytemuck::cast_slice(&vertices),
+            contents: bytemuck::cast_slice(vertices),
             usage: wgpu::BufferUsages::VERTEX,
         });
         self.vertex_buffer = Some(vertex_buffer);
         let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Index Buffer"),
-            contents: bytemuck::cast_slice(&indices),
+            contents: bytemuck::cast_slice(indices),
             usage: wgpu::BufferUsages::INDEX,
         });
         self.index_buffer = Some(index_buffer);

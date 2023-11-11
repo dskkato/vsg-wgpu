@@ -31,7 +31,7 @@ use prost::Message;
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
 struct Args {
-    #[clap(short, long, default_value = "127.0.0.1")]
+    #[clap(long, default_value = "127.0.0.1")]
     host: String,
 
     #[clap(short, long, default_value = "7878")]
@@ -61,7 +61,9 @@ impl State {
         // BackendBit::PRIMARY => Vulkan + Metal + DX12 + Browser WebGPU
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
             backends: wgpu::Backends::all(),
+            flags: wgpu::InstanceFlags::default(),
             dx12_shader_compiler: Default::default(),
+            gles_minor_version: wgpu::Gles3MinorVersion::default(),
         });
         let (size, surface) = unsafe {
             let size = window.inner_size();
@@ -169,10 +171,8 @@ impl State {
                 Box::new(Cross::new(
                     &self.device,
                     &self.config.format,
-                    ctr.x,
-                    ctr.y,
-                    *size,
-                    *size,
+                    &Coordinates { x: ctr.x, y: ctr.y },
+                    &Coordinates { x: *size, y: *size },
                     *line_width,
                     &[0.0, 0.0, 0.2, 1.0],
                 ))
@@ -221,10 +221,12 @@ impl State {
                     resolve_target: None,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(self.bg_color),
-                        store: true,
+                        store: wgpu::StoreOp::Store,
                     },
                 })],
                 depth_stencil_attachment: None,
+                timestamp_writes: None,
+                occlusion_query_set: None,
             });
             if let Some(image) = &self.picture {
                 image.render(&mut rpass);
@@ -287,8 +289,8 @@ fn handle_connection(
         let msg = b"{\"type\": \"success\"}";
         let len = msg.len() as u32;
         log::trace!("{}", len);
-        stream.write(&len.to_be_bytes())?;
-        stream.write(msg)?;
+        let _ = stream.write(&len.to_be_bytes())?;
+        let _ = stream.write(msg)?;
         stream.flush()?;
     }
     Ok(())
@@ -300,12 +302,10 @@ fn prompt_for_monitor(event_loop: &EventLoop<()>, idx: usize) -> MonitorHandle {
         log::debug!("Monitor #{}: {:?}", num, monitor.name());
     }
 
-    let monitor = event_loop
+    event_loop
         .available_monitors()
         .nth(idx)
-        .expect("Please enter a valid ID");
-
-    monitor
+        .expect("Please enter a valid ID")
 }
 
 fn main() {
@@ -394,8 +394,8 @@ fn main() {
                     let mut t = message_bucket.lock().unwrap();
                     // 暫定：最後のコマンドだけを実行する
                     match t.last() {
-                        Some(Command::Draw(shape)) => state.update_shape(&shape),
-                        Some(Command::Clear(color)) => state.update_bg_color(&color),
+                        Some(Command::Draw(shape)) => state.update_shape(shape),
+                        Some(Command::Clear(color)) => state.update_bg_color(color),
                         Some(Command::Texture(idx, texture)) => state.update_texture(*idx, texture),
                         _ => {}
                     }

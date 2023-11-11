@@ -10,19 +10,17 @@ impl Cross {
     pub fn new(
         device: &wgpu::Device,
         format: &wgpu::TextureFormat,
-        x_ctr: f32,
-        y_ctr: f32,
-        x_size: f32,
-        y_size: f32,
+        ctr: &Coordinates,
+        size: &Coordinates,
         line_width: f32,
         color: &[f32; 4],
     ) -> Self {
         // horizontal line
-        let p1 = Rectangle::new(device, format, x_ctr, y_ctr, x_size, line_width, color);
-        let p2 = Rectangle::new(device, format, x_ctr, y_ctr, line_width, y_size, color);
+        let p1 = Rectangle::new(device, format, ctr.x, ctr.y, size.x, line_width, color);
+        let p2 = Rectangle::new(device, format, ctr.x, ctr.y, line_width, size.y, color);
 
         Self {
-            ctr: Coordinates { x: x_ctr, y: y_ctr },
+            ctr: ctr.clone(),
             pipelines: [p1, p2],
         }
     }
