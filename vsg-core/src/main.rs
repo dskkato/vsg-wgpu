@@ -31,7 +31,7 @@ use prost::Message;
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
 struct Args {
-    #[clap(short, long, default_value = "127.0.0.1")]
+    #[clap(long, default_value = "127.0.0.1")]
     host: String,
 
     #[clap(short, long, default_value = "7878")]
@@ -61,7 +61,9 @@ impl State {
         // BackendBit::PRIMARY => Vulkan + Metal + DX12 + Browser WebGPU
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
             backends: wgpu::Backends::all(),
+            flags: wgpu::InstanceFlags::default(),
             dx12_shader_compiler: Default::default(),
+            gles_minor_version: wgpu::Gles3MinorVersion::default(),
         });
         let (size, surface) = unsafe {
             let size = window.inner_size();
@@ -221,10 +223,12 @@ impl State {
                     resolve_target: None,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(self.bg_color),
-                        store: true,
+                        store: wgpu::StoreOp::Store,
                     },
                 })],
                 depth_stencil_attachment: None,
+                timestamp_writes: None,
+                occlusion_query_set: None,
             });
             if let Some(image) = &self.picture {
                 image.render(&mut rpass);

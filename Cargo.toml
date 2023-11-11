@@ -4,3 +4,9 @@ members = [
     "vsg-core",
     "vsg-messages/rust",
 ]
+
+[workspace.dependencies]
+bytes = "1.5.0"
+prost = "0.12.0"
+
+prost-build = "0.12"
